@@ -7,14 +7,16 @@ Local checks on **7 October 2026**, macOS arm64, Node.js 24.21.0, Python 3.12 an
 | Core and client | PASS | 38 Node tests, consumer types, offline packed-package runtime/type checks |
 | Backend and CLI | PASS | 50 Python tests with real isolated MongoDB databases |
 | Version parity | PASS | 2,107 detailed TypeScript/Python cases, in addition to legacy parity/golden checks |
-| Detailed real-browser probes | PASS locally | 400 repeated collections across Chromium 145 and WebKit 26, four ephemeral contexts per engine, viewport/DPR/reload changes |
+| Detailed real-browser probes | PASS locally | 500 repeated collections across Chromium 145 and WebKit 26, five ephemeral contexts per engine, DPR 1 / 1.25 / 1.5 / 2 / 3, viewport/DPR/reload changes |
 | Font isolation | PASS | Host remote/local font overrides cannot alter probe results or initiate font downloads; blocked isolation returns null; temporary frames are removed |
 | Cross-browser continuity | NOT PRESERVED in this sample | Chromium and WebKit on the same host had different canvas hashes; strict detailed matching rejected the association |
 | Backend population replay | PASS | 2,304 identification requests, 24 isolated projects, synthetic observations through actual FastAPI/MongoDB; metrics equal the pure simulator |
 | Legacy contention replay | PASS | 96/96 unique concurrent requests and 64/64 idempotent retries accepted; one visitor/one replay event as appropriate |
 | Real-device population accuracy | UNKNOWN | No independently labeled multi-device longitudinal cohort or commercial reference outputs |
 
-Local Firefox cannot start reliably on this macOS host. The CI workflow is configured to run all three engines on Linux, including the new detailed probe checks and full Compose/UI acceptance. A local two-engine result must not be described as a three-engine result.
+Local Firefox cannot start reliably on this macOS host. The separate [Linux CI run 37628920928](https://github.com/ercoledevs/fingerprint-singularity/actions/runs/37628920928) passed both verification jobs on implementation commit `d99b7f7264ce51094ef883ed67d32a6c7c3e6148`: Chromium, Firefox and WebKit detailed checks (250 collections each), packed consumer checks, plus complete Compose/browser/CLI/recovery acceptance.
+
+CI exposed display-density changes in the initial text/PNG canvas probe. The final probe removes text and hashes raw RGBA pixels; the original strict invariance assertion now passes at DPR 1, 1.25, 1.5, 2 and 3. This removes tested variability without claiming invariance under every graphics driver or future browser update. The synthetic population model cannot measure the real-world discrimination of a changed drawing.
 
 ## Paired synthetic evaluation
 
