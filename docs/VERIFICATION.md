@@ -1,3 +1,47 @@
+# Version 0.3.1 retrieval verification
+
+Local checks on **7 October 2026**, macOS arm64 and MongoDB 8.0.16. This patch changes candidate retrieval, not collected signals, hashes or matching thresholds.
+
+| Check | Result | Scope |
+|---|---|---|
+| Core, packed package and console | PASS | 38 Node tests, consumer types, offline packed imports and Vue production build |
+| Backend and CLI | PASS | Full 64-test Python suite with actual isolated MongoDB, plus the subsequently added interrupted-query test; existing parity, concurrency, revocation, retention and recovery checks retained |
+| Retrieval recall | PASS | 80 sufficient queries × 243 candidate combinations = 19,440 comparisons; Mongo returns exactly the candidates without kernel contradictions, including null evidence |
+| Ambiguity controls | PASS | Incomplete compatible rivals retained; missing-property records reach validation; 256 compatible clones abstain and 257 still overflow |
+| Interrupted query | PASS | A timeout after the first candidate returns `503` with no event/ID assignment; retry succeeds after query recovery |
+| Query work | PASS | 26 actual query plans across all four detail-availability shapes; 1,024 and 8,192 contradictory/expired anchors; at most 1 document and 2 index keys examined in these fixtures |
+| Paired capacity model | PASS | 27,648 simulated visits across 36 configurations; compatible retrieval agrees with an uncapped semantic oracle |
+| Actual API replay | PASS | 9,216 requests across 12 isolated projects; every assignment/status and aggregate metric agrees with the uncapped oracle |
+| Population identification accuracy | UNKNOWN | Synthetic device labels and finite feature classes do not measure real-device uniqueness or browser continuity |
+
+The regression was reproduced before the change: one known anchor plus 257 same-platform anchors with a conflicting core/GPU/font/canvas value exhausted retrieval and returned no visitor. The new query excludes these permanent contradictions before applying the limit. Legacy v1 retrieval and public kernel limits remain unchanged.
+
+The capacity fixture has **384 labeled profiles** from 24 shared GPU classes × 16 shared font classes, the same platform/core bucket, and coarser correlated canvas classes. Labels never enter observations. Each profile visits twice; the test uses three shuffled arrival orders. Results below are the same in all three orders, which are not independent populations:
+
+| Scenario | Retrieval | Assigned visits | Exclusive two-visit continuity | True links | False links |
+|---|---|---:|---:|---:|---:|
+| Unchanged finite grid | Previous platform-only | 257/768 | 0/384 | 0 | 0 |
+| Unchanged finite grid | Compatible | 768/768 | 384/384 | 384 | 0 |
+| GPU unavailable on return | Previous platform-only | 257/768 | 0/384 | 0 | 0 |
+| GPU unavailable on return | Compatible | 384/768 | 0/384 | 0 | 0 |
+| GPU unavailable on first visit | Either | 768/768 | 0/384 | 384 | 5,376 |
+| Identical complete profiles | Either | 768/768 | 0/384 | 384 | 294,144 |
+
+This improvement removes a capacity-induced loss of continuity. It does not separate identical observations, repair sparse-first merges, or change rendering stability across browsers. The uncapped oracle is independently expressed from the unchanged comparison rules and scans every retained anchor; the production path uses the bounded Mongo query and original kernel.
+
+The API replay advances only the rate-limiter clock by one synthetic second per check; quotas remain enabled. It is a decision-equivalence test, not a throughput benchmark. Query-plan tests disable only TTL cleanup in their disposable database so expiry filtering is exercised while expired documents are still present. They record keys examined as well as documents examined, use the production hint/projection/257 limit/1.5-second deadline, and do not claim worst-case bounds for arbitrary database corruption or every dataset.
+
+Reproduce after installing the Python package and starting a disposable MongoDB instance:
+
+```sh
+TEST_MONGO_URI=mongodb://127.0.0.1:27018 python -m pytest server/tests -q
+python scripts/evaluate-retrieval.py --out artifacts/improvement-retrieval
+```
+
+Artifacts: `query-plans.json`, `retrieval-results.json` and `retrieval-api.json`. Database fixtures remove their isolated databases after completion. See [retrieval semantics and index upgrade costs](DETAILED.md#candidate-retrieval).
+
+---
+
 # Version 0.3.0 verification
 
 Local checks on **7 October 2026**, macOS arm64, Node.js 24.21.0, Python 3.12 and MongoDB 8.0.16:

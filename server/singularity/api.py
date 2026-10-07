@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictStr
 from pymongo.errors import PyMongoError
 
-from . import kernel, search
+from . import kernel, retrieval, search
 from .security import mac, now, origin, settings, uid, verify_password
 from .store import Store
 
@@ -106,7 +106,7 @@ async def lifespan(app):
     app.state.store.close()
 
 
-app = FastAPI(title="Singularity API", version="0.3.0", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="Singularity API", version="0.3.1", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
 
 @app.exception_handler(PyMongoError)
@@ -193,7 +193,7 @@ def visible_event(e):
 def health(request: Request):
     store, _ = context(request)
     store.db.command("ping")
-    return {"status": "ready", "version": "0.3.0"}
+    return {"status": "ready", "version": "0.3.1"}
 
 
 @app.get("/api/config")
@@ -255,12 +255,11 @@ def identify(key: str, data: Identification, request: Request):
             visitor, method, reason = bound["visitorId"], "remembered", "possession-token"
             expires = min(expires, bound["expiresAt"])
         elif kernel.sufficient(s):
-            candidate_filter = {"project": p["_id"], "snapshot.schema": s['schema'], "anchor": True, "expiresAt": {"$gt": t}}
+            candidate_filter = retrieval.anchor_filter(p['_id'], s, t)
+            cursor = store.events.find(candidate_filter, {"visitorId": 1, "snapshot": 1, "expiresAt": 1})
             if s['schema'] == 'singularity/v2':
-                # A known different platform is a permanent veto in support/v2.
-                candidate_filter['snapshot.signals.platform'] = s['signals']['platform']
-            candidates = list(store.events.find(candidate_filter,
-                                               {"visitorId": 1, "snapshot": 1, "expiresAt": 1}).limit(257).max_time_ms(1500))
+                cursor = cursor.hint(retrieval.index_for(s))
+            candidates = list(cursor.limit(257).max_time_ms(1500))
             decision["candidateCount"] = len(candidates)
             if data.remember:
                 if not p["enrollment"]:

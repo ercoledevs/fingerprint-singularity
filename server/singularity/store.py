@@ -6,6 +6,7 @@ import secrets
 from contextlib import contextmanager
 from pathlib import Path
 from pymongo import ASCENDING, DESCENDING, MongoClient
+from . import retrieval
 from .security import now
 
 
@@ -41,6 +42,8 @@ class Store:
         self.events.create_index([("project", ASCENDING), ("requestKey", ASCENDING)], unique=True)
         self.events.create_index([("project", 1), ("anchor", 1), ("expiresAt", 1)])
         self.events.create_index([("project", 1), ("snapshot.schema", 1), ("snapshot.signals.platform", 1), ("anchor", 1), ("expiresAt", 1)])
+        for name, keys in retrieval.INDEXES.items():
+            self.events.create_index(keys, name=name, partialFilterExpression=retrieval.INDEX_PARTIAL_FILTER)
         self.events.create_index([("project", 1), ("createdAt", -1), ("_id", -1)])
         self.events.create_index([("project", 1), ("_id", 1)])
         for field in ["visitorId", "digest", "method", "reason", "snapshot.signals.platform"]:

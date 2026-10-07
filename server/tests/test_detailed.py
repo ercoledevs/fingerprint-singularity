@@ -76,7 +76,7 @@ def test_detail_conflict_missing_and_platform_partition(client):
         d['snapshot']['signals']['platform'] = 'windows'; docs.append(d)
     client.store.events.insert_many(docs)
     result = identify(client, snapshot=detailed()).json()
-    assert result['decision']['candidateCount'] == 2 and result['visitorId'] == first['visitorId']
+    assert result['decision']['candidateCount'] == 1 and result['visitorId'] == first['visitorId']
 
 
 def test_bounded_wait_absorbs_healthy_burst_and_preserves_idempotency(client):

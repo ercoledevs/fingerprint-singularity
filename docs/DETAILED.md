@@ -47,11 +47,21 @@ Canonical tuples contain schema, scope, probe revision, the five coarse signals,
 
 1. Upgrade the Python backend. It accepts v1 and v2 on the existing `/api/v1/identify/{publicKey}` transport endpoint.
 2. Upgrade the JavaScript agent/console. `createAgent` defaults to `mode: 'detailed'`; select `mode: 'legacy'` explicitly for an older backend or existing v1 integration.
-3. Retain historical v1 records unchanged. Stateless candidate pools are partitioned by schema. V2 also partitions by its permanent platform compatibility condition. Its 256 limit applies to the complete compatible platform pool; global enrollment quota remains 512.
+3. Retain historical v1 records unchanged. Stateless candidate pools are partitioned by schema. Starting with backend 0.3.1, v2 excludes known platform, core, GPU, font and canvas contradictions before the 256-candidate limit. Missing/null values remain possible rivals. The global enrollment quota remains 512.
 
 The first detailed request may create a new visitor even if a legacy candidate exists. Valid possession tokens continue across schemas until expiry/revocation. Existing v1 exports and canonical digests are unchanged.
 
 The console displays the schema and availability of detailed evidence. CLI exact-digest search and prefix filters accept both `sg1_` and `sg2_`.
+
+## Candidate retrieval
+
+The backend retrieves every active anchor that has no permanent `support/v2` conflict with the observation. It then applies the unchanged kernel to that pool. This prevents irrelevant anchors from exhausting the 256-candidate limit; 257 compatible anchors still cause `candidate-overflow`, with no truncated comparison. No new probe, hash, threshold or browser permission is introduced.
+
+`decision.candidateCount` is the retrieved compatible pool size, capped at the overflow marker 257, rather than all retained platform anchors. When every anchor is contradictory, the result reason is `no-candidates` instead of `no-candidate-qualified`; both produce a provisional assignment. For valid, same-scope snapshots with unique candidate IDs and at most 256 compatible candidates, removing these contradictions preserves the uncapped assignment decision. Sparse compatible rivals remain in the pool and can block a winner. The standalone TypeScript/Python match functions retain their original 256-input limit and validate every supplied candidate.
+
+Four partial MongoDB indexes cover anchors only: one for each observed detail pair and one for all three details. Each puts expiry after its constrained fields, preserving efficient lookup even before expired records are removed by TTL. They are created at backend startup; existing large databases may take longer to start and need extra index space. Query deadlines remain 1.5 seconds. A query failure returns `503`, never an assignment from a partial result. Upgrading does not rewrite observations or historical responses. Rolling back leaves harmless unused indexes.
+
+This equivalence assumes conforming stored anchors. The database and offline backups are operator-controlled; archive restoration validates its envelope, not every snapshot. Retrieved malformed candidates still fail kernel validation. Retrieval is not an integrity audit of records excluded by its predicates.
 
 ## Concurrency
 

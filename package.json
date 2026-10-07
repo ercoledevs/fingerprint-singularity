@@ -1,6 +1,6 @@
 {
   "name": "fingerprint-singularity",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Display-independent observations and conservative, explainable candidate matching. No universal device identity guarantee.",
   "type": "module",
   "main": "./dist/index.js",

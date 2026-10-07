@@ -11,7 +11,7 @@ The platform adds server-side decisions, retained events, project configuration,
 | `visitorId` | Project-scoped assigned visitor, or `null` when unassigned |
 | `method` | How the assignment was made |
 | `reason` | Machine-readable explanation |
-| `decision` | Policy, candidate count and omission checks; optional comparison |
+| `decision` | Policy, retrieved candidate count and omission checks; optional comparison |
 | `expiresAt` | Retention deadline |
 
 Methods are `provisional` (a new inferred candidate), `inferred` (a qualifying existing candidate), `enrolled` (fresh explicit browser enrollment), `remembered` (valid possession token), and `unassigned`.
@@ -89,7 +89,7 @@ This release is designed for a small self-hosted instance:
 
 - One API worker, enforced with a lock on its shared state volume. Writes wait at most two seconds for the global atomic write lock, then return `429` under prolonged contention. Admission remains bounded at 32 requests.
 - At most 32 projects, 120 identification requests/minute/project and 10,000 accepted events/day/project.
-- At most 256 complete active compatible candidates for inference, partitioned by schema and additionally by platform for v2. A 257th compatible candidate causes abstention rather than a truncated comparison. Explicit enrollment is capped at 512 active candidates across schemas.
+- At most 256 complete active compatible candidates for inference, partitioned by schema. V2 retrieval excludes known platform/core/detail conflicts before that limit and retains missing evidence; v1 keeps its complete legacy pool. A 257th compatible candidate causes abstention rather than a truncated comparison. Explicit enrollment is capped at 512 active candidates across schemas. See [retrieval and diagnostic semantics](DETAILED.md#candidate-retrieval).
 - An 8 KiB body cap, 10-second total body deadline, 32 active requests, bounded Mongo connection pool and query deadlines.
 - Retention of 1–90 days, default 30. Query-time expiry applies immediately; Mongo TTL cleans up expired documents asynchronously. Increasing retention never restores expired data.
 

@@ -40,6 +40,7 @@ jobs:
       - run: python scripts/setup.py
       - run: python scripts/ci-report.py docker compose -f compose.yaml -f .github/compose.test.yaml --profile web up --build -d --wait
       - run: python scripts/ci-report.py
+      - run: python scripts/evaluate-retrieval.py --out artifacts/improvement-retrieval
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: python scripts/ci-report.py node scripts/platform-browser-check.mjs
       - name: Headless profile
@@ -52,7 +53,9 @@ jobs:
         if: always()
         with:
           name: platform-browser-evidence
-          path: artifacts/platform
+          path: |
+            artifacts/platform
+            artifacts/improvement-retrieval
       - name: Service logs
         if: failure()
         run: docker compose logs --tail=100 api web gateway
