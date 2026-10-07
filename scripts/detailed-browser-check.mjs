@@ -84,7 +84,12 @@ try {
         distinctDigests: 1, available: Object.fromEntries(Object.entries(observations[0].snapshot.detail).map(([k,v]) => [k,v !== null])),
         timings: {medianMs: elapsed[Math.floor(elapsed.length / 2)], p95Ms: elapsed[Math.floor(elapsed.length * .95)], maxMs: elapsed.at(-1)},
         checks: ['viewport/DPR/reload/isolated-context stability', 'host font isolation', 'no external/font requests', 'blocked DOM => null', 'no iframe leaks']});
-    } catch (e) { report.browsers.push({name, status: 'FAIL', error: e.message}); process.exitCode = 1; }
+    } catch (e) {
+      report.browsers.push({name, status: 'FAIL', error: e.message}); process.exitCode = 1;
+      // Keep failures visible in public CI annotations as well as archived evidence.
+      const message = e.message.replaceAll('%', '%25').replaceAll('\r', '%0D').replaceAll('\n', '%0A');
+      console.error(`::error title=Detailed browser ${name}::${message}`);
+    }
     finally { await browser?.close(); }
   }
   for (const a of snapshots) for (const b of snapshots) if (a.name < b.name) {
