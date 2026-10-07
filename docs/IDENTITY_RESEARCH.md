@@ -1,6 +1,6 @@
 # Stronger fingerprints and cross-browser identity
 
-Research date: **7 October 2026**. Scope: the existing automatic, probabilistic, display-independent library, plus a feasibility study of sharing an identifier across browsers and private sessions. This document records research and design hypotheses, **not implemented features or a completed Council verdict**. No new signal collection, storage, permissions, network transport, or identity bridge has been added to the library.
+Research date: **7 October 2026**. Scope: the existing automatic, probabilistic, display-independent library, plus a feasibility study of sharing an identifier across browsers and private sessions. This document records research and design hypotheses, **not implemented features**. No new signal collection, storage, permissions, network transport, or identity bridge has been added to the library.
 
 ## Findings
 
@@ -75,7 +75,7 @@ Historical covert channels are relevant limitations of browser isolation. Pool-P
 
 ## Candidate architecture for an optional shared ID
 
-This is a design hypothesis requiring Council review and separate implementation scope. It relaxes the original browser-only constraint.
+This is a design hypothesis requiring a separate implementation and validation effort. It requires an installed component beyond the browser-only library.
 
 ```mermaid
 flowchart LR
@@ -131,10 +131,10 @@ An isolated local experiment ran on one macOS host with Playwright Chromium **14
 
 These checks demonstrate the tested boundaries; absence of a message in a bounded test is not a proof against all covert channels. Playwright isolated contexts model independent storage sessions, not every detail of branded Chrome/Safari incognito UI. Firefox, native messaging, real extension private-mode enrollment, loopback permissions and hardware changes were not exercised in this experiment. The earlier successful three-engine library CI run did not test these new communication scenarios. [Playwright context isolation](https://playwright.dev/docs/browser-contexts).
 
-The local reproduction script and raw report are in ignored `artifacts/communication-research.mjs` and `artifacts/communication-boundaries.json`; they are not distributed with the package. Temporary profiles were removed at completion. The existing Graphify index was queried to locate `collect`, `Snapshot`, `POLICY`, and `match`; source/API contracts remain authoritative. No token-saving percentage was measured.
+The experiment used temporary profiles, which were removed at completion. Raw research artifacts are not included in the distributed package.
 
-## Decision status
+## Implementation status
 
 The research supports evaluating stronger probabilistic evidence and, as a separate product option, an explicitly enabled shared installation ID. It does not establish that either improves this library in production yet.
 
-The requested new Codex Mind run is awaiting acceptance of its visible Forge + Council Deep estimate. Until those stages run, there is no new Forge convergence result, Council `build` verdict, or Hyper implementation approval for these proposals. The existing v0.1.0 verdict applies only to the previously delivered implementation.
+Version 0.1.0 implements the five-signal collector, snapshot hashing, and family-omission matching described in the [API documentation](../README.md). Additional collectors and shared-identity transports described here are research directions, not available APIs.

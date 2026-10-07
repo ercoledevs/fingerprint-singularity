@@ -1,10 +1,8 @@
 # Fingerprint Singularity
 
-For the follow-up study of stronger signals, cross-browser communication, private-session boundaries, and optional shared identities, see [Identity research](docs/IDENTITY_RESEARCH.md). It distinguishes researched proposals from the features implemented in v0.1.0.
+A TypeScript library for collecting **fingerprints independent of screen data** and comparing observations with previous candidates, even when some signals change. No runtime dependencies, network calls, cookies, storage, or permission requests.
 
-A TypeScript library for collecting **fingerprints independent of screen data** and comparing observations with previous candidates, even when some signals change. An original implementation, informed by an analysis of FingerprintJS. No runtime dependencies, network calls, cookies, storage, or permission requests.
-
-**It does not produce a universal physical identifier.** Browsers do not expose enough data to guarantee the same unique ID across every browser forever. Two devices with the same observations produce the same hash. This library prioritizes stability and explainability at the expense of its ability to distinguish devices; it has not been shown to identify devices more accurately than FingerprintJS.
+The API provides deterministic snapshot hashes and explainable, probabilistic candidate matching. Your application manages candidate IDs and previous observations.
 
 ## Two different results
 
@@ -13,7 +11,7 @@ A TypeScript library for collecting **fingerprints independent of screen data** 
 | `digest(snapshot)` | SHA-256 hash of a single observation, including its scope | Changes whenever a normalized value changes |
 | `match(snapshot, candidates)` | A compatible candidate among those supplied by the application | May retain the same `candidateId` with different data, or abstain |
 
-An application-assigned ID remains the same only when that candidate is returned. To compare visits from different browsers, the application must supply previous observations, for example from its own backend. An account is not required, but **a new browser without previous candidates cannot magically recover an ID**. The library neither stores nor reconstructs those candidates.
+An application-assigned ID remains the same when that candidate is returned. To compare visits from different browsers, supply previous observations from your application, for example through your backend. No account is required. Candidate storage and retrieval are managed by your application.
 
 ## Getting started
 

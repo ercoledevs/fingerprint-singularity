@@ -31,7 +31,7 @@ The verifier demonstrated that an array with a custom `Symbol.iterator` could hi
 
 Node run after the fix: collection with an adapter at approximately **0.003 ms** p95; full matching with 256 candidates at approximately **0.847 ms** p95. In the available browsers, local runs meet collection p95 <10 ms and matching p95 <50 ms. Browser clocks may have reduced precision.
 
-Retained Node heap after GC: approximately **5 KiB** in the run; pre-GC delta approximately **23 MiB**. These are noisy observations, not guaranteed maximum allocations. There is no portable measure of peak allocations across all browsers: the workload limit also follows from 5 signals, 3 omissions, and 256 candidates. Regression budget: retained heap <32 MiB. No performance or accuracy comparison with FingerprintJS.
+Retained Node heap after GC: approximately **5 KiB** in the run; pre-GC delta approximately **23 MiB**. These are noisy observations, not guaranteed maximum allocations. There is no portable measure of peak allocations across all browsers: the workload limit also follows from 5 signals, 3 omissions, and 256 candidates. Regression budget: retained heap <32 MiB.
 
 ## Reproduction
 
