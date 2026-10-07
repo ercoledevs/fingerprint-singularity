@@ -1,5 +1,9 @@
 # Fingerprint Singularity
 
+![Singularity — Fingerprint Identification](docs/assets/banner.png)
+
+<p align="center"><img src="docs/assets/logo.png" width="64" height="64" alt="Singularity logo"></p>
+
 **Browser observations, explainable identification, and a console you can host yourself.**
 
 Fingerprint Singularity includes a TypeScript library, a Python API backed by MongoDB, a Vue backoffice, and a standalone terminal client. Collect display-independent observations, explore event and visitor IDs, and inspect the evidence behind each assignment.
