@@ -75,3 +75,7 @@ singularity logout
 ```
 
 Logout removes the local session file and attempts server revocation. An expired or already-revoked session is considered signed out. If the server cannot confirm revocation, the command reports that limitation; the remote session expires within eight hours. The CLI is otherwise read-only. Use the backoffice for project changes and visitor deletion.
+
+## Offline identification evaluation
+
+Run `singularity evaluate observations.jsonl` without signing in. Use `singularity --json evaluate observations.jsonl` for exact counts, denominators, cross-browser pairs and per-device summaries. See [Evaluation](EVALUATION.md) for the labeled data contract and collection protocol.

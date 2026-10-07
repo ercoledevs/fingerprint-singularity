@@ -107,6 +107,8 @@ def parser():
     detail = sub.add_parser("show", help="Inspect an event, observations and decision")
     detail.add_argument("event")
     detail.add_argument("--project", required=True)
+    evaluation = sub.add_parser("evaluate", help="Evaluate labeled JSONL observations offline, without signing in")
+    evaluation.add_argument("file", type=Path)
     return p
 
 
@@ -149,6 +151,20 @@ def display(data, command):
     elif command == "show":
         console.print(Panel(f'Event: {data["_id"]}\nVisitor: {data["visitorId"] or "Unassigned"}\nMethod: {data["method"]}\nReason: {data["reason"]}\nExpires: {data["expiresAt"]}', title="Singularity / Event", border_style="cyan"), markup=False)
         console.print_json(data=data)
+    elif command == "evaluate":
+        table = Table(title="SINGULARITY  /  Identification evaluation", header_style="bold cyan", expand=True)
+        for label in ["Cohort", "Source", "Visits / devices", "Pair coverage", "False links", "Link yield"]:
+            table.add_column(label, overflow="fold")
+        def percent(value):
+            return "N/A" if value is None else f"{value:.2%}"
+        for c in data["cohorts"]:
+            m = c["singularity"]["allPairs"]
+            table.add_row(Text(f'{c["project"]} / {c["configuration"]} / {c["mode"]}'), c["source"],
+                          f'{c["observations"]} / {c["devices"]}', percent(m["rates"]["pairCoverage"]["value"]),
+                          str(m["falseLinks"]), percent(m["rates"]["endToEndLinkYield"]["value"]))
+        console.print(table)
+        console.print(data["interpretation"], markup=False, style="dim")
+        console.print("Use --json before evaluate for denominators, cross-browser pairs, per-device and reference results.", style="dim")
     else:
         console.print(data["message"], markup=False, style="green")
 
@@ -156,7 +172,10 @@ def display(data, command):
 def main(argv=None):
     args = parser().parse_args(argv)
     try:
-        if args.command == "login":
+        if args.command == "evaluate":
+            from .evaluation import run
+            data = run(args.file)
+        elif args.command == "login":
             base = endpoint(args.url)
             if args.password_stdin:
                 password = sys.stdin.readline().rstrip("\r\n")
