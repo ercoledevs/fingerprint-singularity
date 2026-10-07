@@ -7,7 +7,7 @@ const password = (await readFile('.admin-password', 'utf8')).trim();
 await mkdir('artifacts/platform', {recursive: true});
 for (const [name, engine] of Object.entries({chromium, firefox, webkit})) {
   const browser = await engine.launch();
-  const page = await browser.newPage({viewport: {width: 1365, height: 1000}});
+  let page = await browser.newPage({viewport: {width: 1365, height: 1000}});
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   async function identify(buttonName) {
@@ -23,7 +23,19 @@ for (const [name, engine] of Object.entries({chromium, firefox, webkit})) {
     return data;
   }
   await page.goto(base);
-  await identify('Identify this browser');
+  const initial = await identify('Identify this browser');
+  if (initial.method === 'unassigned' && initial.reason === 'insufficient-observation') {
+    await page.getByText('insufficient-observation', {exact: true}).waitFor();
+    await page.screenshot({path: `artifacts/platform/${name}-sparse-observation.png`, fullPage: true});
+    console.log(`PASS ${name}: unavailable default-locale evidence remains unassigned`);
+    await page.close();
+    // A configured locale provides a reproducible positive enrollment fixture.
+    // Keep the sparse default-context result above; do not weaken evidence floors.
+    page = await browser.newPage({viewport: {width: 1365, height: 1000}, locale: 'en-US'});
+    page.on('pageerror', e => errors.push(e.message));
+    await page.goto(base);
+    await identify('Identify this browser');
+  }
   await page.getByRole('button', {name: 'Identify again', exact: true}).waitFor();
   assert.match(await page.getByTestId('event-id').innerText(), /^evt_/);
   await page.getByLabel('Remember this browser', {exact: true}).check();
