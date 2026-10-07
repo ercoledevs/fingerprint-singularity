@@ -1,21 +1,23 @@
 # Fingerprint Singularity
 
-Una libreria TypeScript per raccogliere **impronte indipendenti dai dati dello schermo** e confrontare osservazioni con candidati precedenti, anche quando qualche segnale cambia. Implementazione originale, ispirata all’analisi di FingerprintJS. Nessuna dipendenza runtime, rete, cookie, storage o richiesta di permessi.
+For the follow-up study of stronger signals, cross-browser communication, private-session boundaries, and optional shared identities, see [Identity research](docs/IDENTITY_RESEARCH.md). It distinguishes researched proposals from the features implemented in v0.1.0.
 
-**Non produce un identificatore fisico universale.** Il browser non espone dati sufficienti per garantire lo stesso ID univoco su ogni browser e per sempre. Due dispositivi con le stesse osservazioni producono lo stesso hash. Questa libreria privilegia stabilità e spiegabilità, sacrificando capacità discriminante; non è dimostrato che identifichi più accuratamente di FingerprintJS.
+A TypeScript library for collecting **fingerprints independent of screen data** and comparing observations with previous candidates, even when some signals change. An original implementation, informed by an analysis of FingerprintJS. No runtime dependencies, network calls, cookies, storage, or permission requests.
 
-## Due risultati diversi
+**It does not produce a universal physical identifier.** Browsers do not expose enough data to guarantee the same unique ID across every browser forever. Two devices with the same observations produce the same hash. This library prioritizes stability and explainability at the expense of its ability to distinguish devices; it has not been shown to identify devices more accurately than FingerprintJS.
 
-| Risultato | Significato | Cosa può cambiare |
+## Two different results
+
+| Result | Meaning | What can change |
 |---|---|---|
-| `digest(snapshot)` | Hash SHA-256 di una singola osservazione, incluso lo scope | Cambia quando cambia un dato normalizzato |
-| `match(snapshot, candidates)` | Candidato compatibile tra quelli forniti dall’applicazione | Può mantenere lo stesso `candidateId` con dati diversi, oppure astenersi |
+| `digest(snapshot)` | SHA-256 hash of a single observation, including its scope | Changes whenever a normalized value changes |
+| `match(snapshot, candidates)` | A compatible candidate among those supplied by the application | May retain the same `candidateId` with different data, or abstain |
 
-Un ID assegnato dall’applicazione resta uguale solo quando il candidato viene restituito. Per confrontare visite di browser differenti, l’applicazione deve fornire osservazioni precedenti, per esempio dal proprio backend. Non serve un account, ma **un browser nuovo senza candidati precedenti non può recuperare magicamente un ID**. La libreria non conserva né ricostruisce quei candidati.
+An application-assigned ID remains the same only when that candidate is returned. To compare visits from different browsers, the application must supply previous observations, for example from its own backend. An account is not required, but **a new browser without previous candidates cannot magically recover an ID**. The library neither stores nor reconstructs those candidates.
 
-## Avvio
+## Getting started
 
-Richiede Node.js 20+ per lo sviluppo. Il codice browser richiede moduli ES moderni; l’hash richiede Web Crypto su HTTPS o localhost.
+Development requires Node.js 20+. Browser code requires modern ES modules; hashing requires Web Crypto over HTTPS or localhost.
 
 ```sh
 git clone https://github.com/ercoledevs/fingerprint-singularity.git
@@ -26,115 +28,115 @@ npm run demo
 # http://127.0.0.1:4173
 ```
 
-Il package non è pubblicato su npm. Per usarlo in un altro progetto:
+The package is not published on npm. To use it in another project:
 
 ```sh
 npm pack
-# Nel progetto consumatore, installare il tarball prodotto:
-npm install /percorso/fingerprint-singularity-0.1.0.tgz
+# In the consuming project, install the generated tarball:
+npm install /path/to/fingerprint-singularity-0.1.0.tgz
 ```
 
 ```ts
 import { collect, digest, match, type Candidate } from 'fingerprint-singularity'
 
-const snapshot = collect({ scope: 'mia-app.example' })
+const snapshot = collect({ scope: 'my-app.example' })
 const fingerprint = await digest(snapshot)
 
-// L’applicazione fornisce l’intero insieme pertinente, con ID e retention propri.
-// In questo esempio non sono ancora disponibili osservazioni precedenti.
+// The application supplies the full relevant set, with its own IDs and retention.
+// No previous observations are available yet in this example.
 const candidates: Candidate[] = []
 const result = match(snapshot, candidates)
 
-console.log(fingerprint) // sg1_<64 caratteri esadecimali>: hash dell’osservazione
+console.log(fingerprint) // sg1_<64 hexadecimal characters>: observation hash
 console.log(result.status, result.reason)
 if (result.status === 'matched') {
-  console.log(result.candidateId) // Continuità ipotizzata, non identità autenticata
+  console.log(result.candidateId) // Hypothesized continuity, not authenticated identity
 }
 ```
 
-Esempio di continuità quando la memoria non è esposta da un altro browser:
+Example of continuity when another browser does not expose memory:
 
 ```ts
 const previous = {
   schema: 'singularity/v1' as const,
-  scope: 'mia-app.example',
+  scope: 'my-app.example',
   signals: { platform: 'linux' as const, cores: 8, memory: 8, language: 'en', timezone: 'UTC' },
 }
 const current = { ...previous, signals: { ...previous.signals, memory: null } }
-match(current, [{ id: 'candidato-123', snapshot: previous }]).candidateId
-// 'candidato-123'; i due digest sono differenti.
+match(current, [{ id: 'candidate-123', snapshot: previous }]).candidateId
+// 'candidate-123'; the two digests differ.
 ```
 
-## Segnali utilizzati
+## Signals used
 
-| Famiglia | Dato normalizzato | Peso | Limite |
+| Family | Normalized value | Weight | Limitation |
 |---|---|---:|---|
-| Piattaforma | `windows`, `macos`, `ios`, `android`, `linux`, `chromeos` | 3 | La piattaforma dichiarata può essere alterata; iPad in modalità desktop può apparire macOS |
-| Calcolo | Core dichiarati, arrotondati per difetto in classi 1–64 | 2 | Il browser può limitarli; una variazione spesso causa astensione |
-| Calcolo | Memoria dichiarata, classi 0.25–64 GiB | 1 | Approssimata e non disponibile in tutti i browser |
-| Impostazioni locali | Lingua primaria, senza regione | 1 | Configurabile separatamente in ogni browser |
-| Impostazioni locali | Nome del fuso orario | 1 | Modificabile; alias differenti restano diversi |
+| Platform | `windows`, `macos`, `ios`, `android`, `linux`, `chromeos` | 3 | The reported platform can be altered; an iPad in desktop mode may appear as macOS |
+| Compute | Reported core count, rounded down into buckets from 1–64 | 2 | The browser may limit it; a change often causes abstention |
+| Compute | Reported memory, buckets from 0.25–64 GiB | 1 | Approximate and unavailable in some browsers |
+| Locale | Primary language, without region | 1 | Configurable separately in each browser |
+| Locale | Time zone name | 1 | Can change; different aliases remain distinct |
 
-Un dato assente/bloccato è `null` e non guadagna punti, neppure se manca da entrambe le parti. Non si raccoglie la stringa completa dello user agent: viene letta soltanto per ricavare la famiglia della piattaforma, senza conservarne versioni o modello. Le famiglie sono raggruppamenti operativi, **non prove statisticamente indipendenti**.
+Missing or blocked data is `null` and earns no points, even when missing on both sides. The full user agent string is not collected: it is read only to derive the platform family, without retaining versions or model information. Families are operational groupings, **not statistically independent evidence**.
 
-Sono esclusi schermo, risoluzione, viewport, zoom, touch, GPU, WebGL, canvas, audio, font, IP, batteria, versioni del browser e del sistema operativo. L’esclusione evita la dipendenza diretta da queste misure; non prova che cambiare hardware non possa alterare indirettamente altri segnali del sistema.
+Screen, resolution, viewport, zoom, touch, GPU, WebGL, canvas, audio, fonts, IP, battery, and browser and operating system versions are excluded. This removes direct dependence on those measurements; it does not prove that hardware changes cannot indirectly alter other system signals.
 
-## Confronto con esclusione delle famiglie
+## Matching with family omission
 
-La policy `envelope/v1` richiede:
+The `envelope/v1` policy requires:
 
-1. Somiglianza e copertura almeno **0,75**, su tutte e tre le famiglie. Il denominatore comprende anche i segnali mancanti. Piattaforme note differenti impediscono la qualificazione.
-2. Un margine di almeno **0,15** rispetto al migliore rivale senza contraddizioni. In assenza di rivali il margine è `null` e questo controllo è soddisfatto.
-3. Lo stesso candidato deve superare i controlli dopo aver escluso, a turno, ciascuna delle tre famiglie. Ogni confronto ridotto richiede entrambe le famiglie rimaste e ricalcola il denominatore.
+1. Similarity and coverage of at least **0.75**, across all three families. The denominator includes missing signals. Different known platforms prevent qualification.
+2. A margin of at least **0.15** over the best rival without contradictions. When there are no rivals, the margin is `null` and this check passes.
+3. The same candidate must pass the checks after each of the three families is omitted in turn. Each reduced comparison requires both remaining families and recalculates the denominator.
 
-Ogni prova ridotta riconsidera **tutti** i candidati, anche quelli inizialmente scartati. Escludere la piattaforma elimina anche il relativo veto. Un candidato non passa quindi soltanto perché un dato fragile ha escluso i suoi rivali. Il risultato espone contributi, copertura, contraddizioni e prove di esclusione.
+Every reduced trial reconsiders **all** candidates, including those initially rejected. Omitting the platform also removes its veto. A candidate therefore cannot pass solely because a fragile value excluded its rivals. The result exposes contributions, coverage, contradictions, and omission trials.
 
-Queste soglie sono euristiche fissate e versionate, non calibrate su una popolazione. Con i pesi correnti una variazione dei core può superare la soglia iniziale ma fallire le prove ridotte. Una variazione di un singolo segnale di peso 1 può essere tollerata. L’astensione può essere frequente.
+These thresholds are fixed, versioned heuristics, not calibrated against a population. With the current weights, a change in core count can pass the initial threshold but fail the reduced trials. A change in a single signal with weight 1 may be tolerated. Abstention may be frequent.
 
-| Stato | Significato |
+| Status | Meaning |
 |---|---|
-| `matched` | Un candidato supera tutte le prove nell’insieme fornito |
-| `unmatched` | Lista vuota o nessun candidato qualificato con evidenza sufficiente |
-| `abstain` | Evidenza incompleta, candidati ambigui o risultato instabile nelle prove ridotte |
+| `matched` | One candidate passes every trial within the supplied set |
+| `unmatched` | Empty list or no qualified candidate with sufficient evidence |
+| `abstain` | Incomplete evidence, ambiguous candidates, or an unstable result in reduced trials |
 
-Precedenza: convalida completa → lista vuota → evidenza dell’osservazione → qualificazione → margine → prove di esclusione. Un errore in qualsiasi candidato fa fallire l’intera chiamata; nessun risultato parziale. `candidateId` è sempre `null` salvo `matched`. Non assegnare automaticamente un nuovo ID per ogni astensione: significherebbe creare falsi dispositivi distinti. Non modificare automaticamente un candidato sulla base di un match incerto.
+Precedence: full validation → empty list → observation evidence → qualification → margin → omission trials. An error in any candidate fails the entire call; there are no partial results. `candidateId` is always `null` unless the status is `matched`. Do not automatically assign a new ID for every abstention: doing so would create falsely distinct devices. Do not automatically modify a candidate based on an uncertain match.
 
-La lista diagnostica `candidates` mantiene l’ordine degli input; la decisione e i report di esclusione sono indipendenti da quell’ordine. I pareggi non vengono risolti assegnando arbitrariamente un ID.
+The diagnostic `candidates` list preserves input order; the decision and omission reports are independent of that order. Ties are not resolved by arbitrarily assigning an ID.
 
-**La selezione dei candidati conta:** fornire un solo dispositivo con dati comuni può creare un risultato apparentemente univoco. Una coppia di candidati con osservazioni equivalenti produce astensione. Nessun hash o margine elimina le collisioni di origine.
+**Candidate selection matters:** supplying a single device with common data can produce an apparently unambiguous result. A pair of candidates with equivalent observations causes abstention. No hash or margin eliminates collisions in the source observations.
 
-## API e contratti
+## API and contracts
 
-- `collect({ scope, environment? }): Snapshot`: raccolta sincrona. L’adapter facoltativo rende i test riproducibili; in Node è obbligatorio.
-- `canonicalize(snapshot): string`: tupla JSON v1, ordine congelato, senza timestamp.
-- `digest(snapshot): Promise<string>`: SHA-256 con prefisso `sg1_`; richiede Web Crypto, senza fallback casuale.
-- `compare(left, right): Comparison`: confronto di una coppia. `qualifies` non equivale a `matched`: non verifica rivali e prove ridotte.
-- `match(snapshot, candidates): MatchResult`: funzione pura; al massimo 256 candidati, nessun troncamento.
-- `parseSnapshot(json)` / `validateSnapshot(value)`: ingressi con convalida rigorosa; restituiscono una copia.
-- `SCHEMA`, `POLICY_VERSION`, `POLICY`, `LIMITS`, `SingularityError`: contratti esportati.
+- `collect({ scope, environment? }): Snapshot`: synchronous collection. The optional adapter makes tests reproducible; it is required in Node.
+- `canonicalize(snapshot): string`: v1 JSON tuple, frozen order, no timestamp.
+- `digest(snapshot): Promise<string>`: SHA-256 with the `sg1_` prefix; requires Web Crypto, with no random fallback.
+- `compare(left, right): Comparison`: pairwise comparison. `qualifies` does not mean `matched`: it does not check rivals or reduced trials.
+- `match(snapshot, candidates): MatchResult`: pure function; at most 256 candidates, with no truncation.
+- `parseSnapshot(json)` / `validateSnapshot(value)`: strictly validated inputs; return a copy.
+- `SCHEMA`, `POLICY_VERSION`, `POLICY`, `LIMITS`, `SingularityError`: exported contracts.
 
-Gli errori espongono `code`: `INVALID_INPUT`, `INCOMPATIBLE_SCHEMA`, `SCOPE_MISMATCH`, `LIMIT_EXCEEDED`, `DUPLICATE_ID`, `BROWSER_UNAVAILABLE`, `CRYPTO_UNAVAILABLE`.
+Errors expose a `code`: `INVALID_INPUT`, `INCOMPATIBLE_SCHEMA`, `SCOPE_MISMATCH`, `LIMIT_EXCEEDED`, `DUPLICATE_ID`, `BROWSER_UNAVAILABLE`, `CRYPTO_UNAVAILABLE`.
 
-Scope e ID: 1–128 caratteri nell’alfabeto ASCII documentato dal validatore. Snapshot JSON: massimo 2.048 unità UTF-16; prima di passare dati da rete, applicare anche un limite al body HTTP. Scope diversi non vengono confrontati e producono digest diversi. Lo scope è uno spazio dei nomi pubblico, non un controllo di accesso né una protezione contro chi modifica gli input. Gli oggetti con proprietà sconosciute, accessor, prototipi non ordinari o valori non normalizzati vengono rifiutati. Un proxy JavaScript ostile nello stesso processo non è un input isolato o sicuro: usare JSON limitato per dati non fidati.
+Scope and IDs: 1–128 characters in the ASCII alphabet documented by the validator. Snapshot JSON: at most 2,048 UTF-16 code units; also enforce an HTTP body limit before passing in network data. Different scopes are not compared and produce different digests. Scope is a public namespace, not an access control or protection against input modification. Objects with unknown properties, accessors, non-ordinary prototypes, or non-normalized values are rejected. A hostile JavaScript proxy in the same process is not an isolated or safe input: use size-limited JSON for untrusted data.
 
-## Dati e ciclo di vita
+## Data and lifecycle
 
-Nessuno stato persistente: nessun cookie, localStorage, IndexedDB, chiamata HTTP o recupero dopo cancellazione. Chi integra la libreria decide scopo, informativa, retention, scadenza e cancellazione delle osservazioni. Eliminare i candidati dal proprio archivio e svuotare le cache applicative li rende indisponibili alla libreria; non esiste un meccanismo di ripristino nascosto.
+No persistent state: no cookies, localStorage, IndexedDB, HTTP calls, or recovery after deletion. Integrators decide the purpose, privacy notice, retention, expiration, and deletion of observations. Removing candidates from application storage and clearing application caches makes them unavailable to the library; there is no hidden recovery mechanism.
 
-I dati sono falsificabili e potenzialmente personali. **Non usare digest, somiglianza o match come autenticazione, autorizzazione o prova antifrode.** L’hash non rende questi dati anonimi. Nessuna telemetria automatica.
+The data can be spoofed and may be personal data. **Do not use digests, similarity, or matches as authentication, authorization, or anti-fraud evidence.** Hashing does not make this data anonymous. There is no automatic telemetry.
 
-Schema e policy hanno versioni distinte dal package. Una futura modifica a normalizzazione/canonicalizzazione richiederà un nuovo schema; cambiare pesi, soglie o semantica richiederà una nuova policy. Non mischiare schemi diversi: la libreria li rifiuta. Per rollback, reinstallare il tarball precedente e usare soltanto candidati compatibili; questa versione non esegue migrazioni né scrive archivi.
+Schema and policy versions are separate from the package version. Future changes to normalization or canonicalization will require a new schema; changes to weights, thresholds, or semantics will require a new policy. Do not mix schemas: the library rejects them. To roll back, reinstall the previous tarball and use only compatible candidates; this version neither runs migrations nor writes to storage.
 
-## Verifiche e sviluppo
+## Verification and development
 
 ```sh
-npm run check                    # build, contratti e tipi
-npx playwright install          # browser necessari, se assenti
+npm run check                    # build, contracts, and types
+npx playwright install          # required browsers, if missing
 npm run test:browser             # Chromium, Firefox, WebKit + demo
-npm run bench                   # scaling, warmup, mediana/p95, heap Node
-npm pack --dry-run              # contenuti distribuiti
+npm run bench                   # scaling, warmup, median/p95, Node heap
+npm pack --dry-run              # distributed contents
 ```
 
-Il controllo browser fallisce se un motore non parte: nessuno skip silenzioso. Budget locali di regressione: raccolta p95 <10 ms, confronto con 256 candidati p95 <50 ms, heap trattenuto Node dopo GC <32 MiB. Sono limiti di verifica su questo ambiente, non promesse su ogni dispositivo. Le misure non dimostrano accuratezza. I report locali in `artifacts/` non vengono versionati; [VERIFICATION.md](docs/VERIFICATION.md) descrive il run consegnato e i limiti.
+The browser check fails if an engine cannot start: there are no silent skips. Local regression budgets: collection p95 <10 ms, matching against 256 candidates p95 <50 ms, retained Node heap after GC <32 MiB. These are verification limits for this environment, not promises for every device. Measurements do not demonstrate accuracy. Local reports in `artifacts/` are not versioned; [VERIFICATION.md](docs/VERIFICATION.md) describes the delivered run and its limitations.
 
-Graphify indicizza `src` per le consultazioni di sviluppo, senza LLM esterni. [ARCHITECTURE.md](docs/ARCHITECTURE.md) descrive moduli e policy; [RESEARCH.md](docs/RESEARCH.md) registra provenienza e scelte. Licenza MIT, conservata dal repository originale del progetto.
+Graphify indexes `src` for development queries, without external LLMs. [ARCHITECTURE.md](docs/ARCHITECTURE.md) describes modules and policy; [RESEARCH.md](docs/RESEARCH.md) records provenance and decisions. MIT license, retained from the project's original repository.

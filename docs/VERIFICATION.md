@@ -1,35 +1,39 @@
-# Verifica della versione 0.1.0
+# Version 0.1.0 verification
 
-Run locale del **7 ottobre 2026**, macOS arm64, Node.js 24.21.0. Il risultato riguarda il contratto della libreria sperimentale; non dimostra identificazione fisica o accuratezza su una popolazione.
+Local run on **October 7, 2026**, macOS arm64, Node.js 24.21.0. The result concerns the experimental library's contract; it does not demonstrate physical identification or accuracy across a population.
 
-| Controllo | Esito | Evidenza |
+| Check | Result | Evidence |
 |---|---|---|
-| Compilazione TypeScript | PASS | `npm run build`, configurazione strict e dichiarazioni pubbliche |
-| Test Node | PASS | 29 test con `node --test tests/*.test.mjs` |
-| Tipi del consumatore | PASS | `npm run test:types` |
-| Falsificazione indipendente | PASS | Rilettura dei sorgenti, riesecuzione test e riproduzioni del difetto corretto |
-| Invarianti combinatorie | PASS | Verificatore: 59.049 scenari di stati osservazione/candidato, ordine e astensione sui duplicati |
-| Chromium 145.0.7632.6 | PASS | Esecuzione reale, viewport desktop/mobile, hash invariato, controlli senza storage/rete, matcher |
-| WebKit 26.0 | PASS | Stessi controlli reali |
-| Firefox 146.0.1 locale | UNKNOWN | Fallimento avvio plugin-container / sandbox macOS, prima dell’esecuzione della libreria; anche modalità grafica non disponibile |
-| Confronto Chromium/WebKit sullo stesso host | PASS per questo caso | Candidato compatibile; un solo host, non un test di accuratezza |
-| Budget di prestazione Node | PASS | 256 candidati, tre esclusioni, warmup e 200 campioni |
-| Cambio fisico di monitor | UNKNOWN | Verificati esclusione dei segnali e cambio viewport; nessuna sostituzione hardware effettuata |
-| Stabilità nel tempo / unicità di popolazione | UNKNOWN | Nessuna coorte etichettata o osservazione longitudinale |
+| TypeScript compilation | PASS | `npm run build`, strict configuration and public declarations |
+| Node tests | PASS | 29 tests with `node --test tests/*.test.mjs` |
+| Consumer types | PASS | `npm run test:types` |
+| Independent falsification | PASS | Source reread, test rerun, and reproductions of the corrected defect |
+| Combinatorial invariants | PASS | Verifier: 59,049 observation/candidate state scenarios, ordering, and abstention on duplicates |
+| Chromium 145.0.7632.6 | PASS | Real execution, desktop/mobile viewports, unchanged hash, checks for no storage/network use, matcher |
+| WebKit 26.0 | PASS | The same real checks |
+| Local Firefox 146.0.1 | UNKNOWN | plugin-container / macOS sandbox startup failure before library execution; headed mode also unavailable |
+| Chromium/WebKit comparison on the same host | PASS for this case | Compatible candidate; one host, not an accuracy test |
+| Node performance budget | PASS | 256 candidates, three omissions, warmup, and 200 samples |
+| Physical monitor change | UNKNOWN | Signal exclusion and viewport changes verified; no hardware replacement performed |
+| Stability over time / population uniqueness | UNKNOWN | No labeled cohort or longitudinal observations |
 
-Il comando browser completo locale restituisce correttamente codice di uscita 1 per Firefox: **non è un run interamente verde**. La pipeline GitHub Actions è predisposta su Linux per eseguire tutti e tre i motori; il suo esito va letto sul commit effettivo, non dedotto dalla configurazione.
+The full local browser command correctly returns exit code 1 for Firefox: **this was not an entirely green run**. The GitHub Actions pipeline is configured on Linux to run all three engines; its result must be checked against the actual commit, not inferred from configuration.
 
-## Difetto trovato e corretto
+## Verified CI result
 
-Il verificatore ha dimostrato che un array con `Symbol.iterator` personalizzato poteva nascondere rivali o fornire più di 256 candidati pur dichiarando una lunghezza inferiore. Il confronto ora cattura la lunghezza e legge ciascun elemento numerico tramite descrittore di proprietà, senza eseguire iteratori o getter. Rifiuta buchi, elementi ereditati e accessor. Le riproduzioni originali e i nuovi test di regressione passano.
+[GitHub Actions run 37590466814](https://github.com/ercoledevs/fingerprint-singularity/actions/runs/37590466814) completed successfully on commit `3570346d31ca8c5bc7a38a478991324907e41b18`. It passed 29 Node tests, type checks, Chromium, Firefox, WebKit, the benchmark, and `npm pack --dry-run`. This CI result is separate from the historical local Firefox startup failure above.
 
-## Misure locali
+## Defect found and corrected
 
-Run Node dopo la correzione: raccolta con adapter p95 circa **0,003 ms**; confronto completo con 256 candidati p95 circa **0,847 ms**. Nei browser disponibili, nei run locali, raccolta e matching rispettano p95 <10 ms e <50 ms. I clock browser possono avere precisione ridotta.
+The verifier demonstrated that an array with a custom `Symbol.iterator` could hide rivals or supply more than 256 candidates while declaring a shorter length. Matching now captures the length and reads each numeric element through its property descriptor, without executing iterators or getters. It rejects holes, inherited elements, and accessors. The original reproductions and new regression tests pass.
 
-Heap Node trattenuto dopo GC: circa **5 KiB** nel run; delta prima del GC circa **23 MiB**. Sono osservazioni rumorose, non allocazioni massime garantite. Non esiste una misura portabile delle allocazioni di picco per tutti i browser: il limite di lavoro deriva anche da 5 segnali, 3 esclusioni e 256 candidati. Budget di regressione: heap trattenuto <32 MiB. Nessun confronto di prestazioni o accuratezza con FingerprintJS.
+## Local measurements
 
-## Riproduzione
+Node run after the fix: collection with an adapter at approximately **0.003 ms** p95; full matching with 256 candidates at approximately **0.847 ms** p95. In the available browsers, local runs meet collection p95 <10 ms and matching p95 <50 ms. Browser clocks may have reduced precision.
+
+Retained Node heap after GC: approximately **5 KiB** in the run; pre-GC delta approximately **23 MiB**. These are noisy observations, not guaranteed maximum allocations. There is no portable measure of peak allocations across all browsers: the workload limit also follows from 5 signals, 3 omissions, and 256 candidates. Regression budget: retained heap <32 MiB. No performance or accuracy comparison with FingerprintJS.
+
+## Reproduction
 
 ```sh
 npm ci --ignore-scripts
@@ -40,4 +44,4 @@ npm run bench
 npm pack --dry-run
 ```
 
-I report grezzi vengono scritti in `artifacts/`, esclusa da Git. Non vengono inviati altrove. Un nuovo ambiente può cambiare tempi o disponibilità dei browser: riportare i fallimenti, senza trasformare un test non eseguito in PASS.
+Raw reports are written to `artifacts/`, which is excluded from Git. They are not sent elsewhere. A new environment may change timings or browser availability: report failures without turning an unexecuted test into a PASS.

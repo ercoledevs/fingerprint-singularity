@@ -1,27 +1,27 @@
-# Architettura
+# Architecture
 
 ```mermaid
 flowchart LR
-  Browser[API browser] --> Collect[collect / normalizzazione]
-  Collect --> Snapshot[Snapshot v1 con scope]
-  Snapshot --> Canonical[Tupla JSON congelata]
-  Canonical --> Digest[SHA-256 osservazione]
-  Snapshot --> Match[Confronto puro]
-  Candidates[Candidati forniti dal chiamante] --> Validate[Convalida completa / limiti]
+  Browser[Browser APIs] --> Collect[collect / normalization]
+  Collect --> Snapshot[Scoped v1 snapshot]
+  Snapshot --> Canonical[Frozen JSON tuple]
+  Canonical --> Digest[Observation SHA-256]
+  Snapshot --> Match[Pure matching]
+  Candidates[Caller-supplied candidates] --> Validate[Full validation / limits]
   Validate --> Match
-  Match --> Base[Soglie / veto / margine]
-  Base --> Omit[3 prove di esclusione]
+  Match --> Base[Thresholds / veto / margin]
+  Base --> Omit[3 omission trials]
   Omit --> Result[matched / unmatched / abstain]
 ```
 
-`src/collect.ts` legge soltanto sei proprietà note, normalizza cinque segnali e degrada i dati bloccati a null. Le stringhe grezze dello user agent non escono dal collector. Le classi numeriche sono arrotondate per difetto, senza creare entropia nuova.
+`src/collect.ts` reads only six known properties, normalizes five signals, and falls back to null for blocked data. Raw user agent strings never leave the collector. Numeric buckets are rounded down, without creating new entropy.
 
-`src/schema.ts` convalida forme esatte, schemi, namespace e limiti; `parseSnapshot` controlla la dimensione prima di JSON.parse. Un insieme massimo di 256 snapshot da massimo 2.048 unità di codice ciascuno rappresenta un budget di trasporto di circa 1 MiB di testo UTF-16, esclusi envelope e ID: il chiamante deve imporre il proprio limite al body aggregato. La libreria non riceve body HTTP.
+`src/schema.ts` validates exact shapes, schemas, namespaces, and limits; `parseSnapshot` checks size before JSON.parse. A maximum set of 256 snapshots, each at most 2,048 code units, represents a transport budget of approximately 1 MiB of UTF-16 text, excluding envelopes and IDs: the caller must enforce its own aggregate body limit. The library does not receive HTTP bodies.
 
-`src/digest.ts` congela ordine dei campi e separazione con una tupla JSON. Schema e scope partecipano all’hash; la policy non partecipa perché descrive il matching e non l’osservazione. Non ci sono timestamp, valori casuali o identificatori hardware.
+`src/digest.ts` freezes field order and separation with a JSON tuple. Schema and scope participate in the hash; policy does not, because it describes matching rather than the observation. There are no timestamps, random values, or hardware identifiers.
 
-`src/match.ts` valida ogni candidato prima di decidere, senza mutarlo. Con 5 segnali e 3 prove ridotte, valutazione e selezione costano **O(C)**, con C ≤256. I contributi seguono l’ordine fornito dal chiamante; esito e prove di esclusione sono invarianti rispetto a quell’ordine. Il criterio lessicografico degli ID rende deterministica la scelta del rivale nei report e non rompe mai i pareggi ai fini del match, che richiede comunque un margine positivo. Ogni prova ridotta ricalcola veto e confronto su tutti i candidati. La libreria non usa l’esito per assegnare permessi o modificare archivi.
+`src/match.ts` validates every candidate before deciding, without mutating it. With 5 signals and 3 reduced trials, evaluation and selection cost **O(C)**, with C ≤256. Contributions follow the caller's input order; the outcome and omission trials are invariant to that order. Lexicographic ID ordering makes rival selection in reports deterministic and never breaks ties for matching, which still requires a positive margin. Each reduced trial recalculates the veto and comparison across all candidates. The library does not use the outcome to assign permissions or modify storage.
 
-Le prestazioni e il consumo di memoria sono misurati dai comandi di benchmark. Il numero di letture e la dimensione dei dati normalizzati sono limitati; un getter/proxy ostile nello stesso processo non può essere interrotto in modo sicuro e non rientra nel modello di isolamento.
+Performance and memory usage are measured by the benchmark commands. The number of reads and the size of normalized data are bounded; a hostile getter or proxy in the same process cannot be interrupted safely and falls outside the isolation model.
 
-Il controllo delle famiglie non implica indipendenza statistica. La stessa famiglia di piattaforma, CPU e impostazioni può essere condivisa da molti dispositivi. Per misurare utilità operativa servono una coorte etichettata, osservazioni nel tempo e tassi di falsi abbinamenti, separazioni e astensioni.
+Family checks do not imply statistical independence. Many devices may share the same platform family, CPU, and settings. Measuring operational usefulness requires a labeled cohort, observations over time, and rates of false matches, false splits, and abstentions.
