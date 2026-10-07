@@ -16,9 +16,10 @@ try {
     let browser;
     try {
       browser = await engine.launch({timeout: 20000});
-      const observations = [], elapsed = [], requests = [];
-      for (let index = 0; index < 4; index++) {
-        const context = await browser.newContext({locale: 'en-US', timezoneId: 'UTC', deviceScaleFactor: index % 2 + 1});
+      const observations = [], elapsed = [], requests = [], fontAliases = [];
+      const scales = [1, 1.25, 1.5, 2, 3];
+      for (const deviceScaleFactor of scales) {
+        const context = await browser.newContext({locale: 'en-US', timezoneId: 'UTC', deviceScaleFactor});
         const page = await context.newPage();
         await page.route('**/*', async route => {
           const url = route.request().url();
@@ -53,10 +54,14 @@ try {
           style.textContent = '@font-face{font-family:Arial;src:url(/remote.woff2)}@font-face{font-family:Consolas;src:url(/remote2.woff2)}';
           document.head.append(style);
           const remote = await api.collectDetailed({scope: 'detailed-browser-check'});
-          style.textContent = '@font-face{font-family:Arial;src:local("Courier New")}';
-          // The alias target may be absent on Linux; a rejected local-font load
-          // is part of this fixture, not a collector failure.
-          await document.fonts.load('17px Arial').catch(() => []);
+          let aliasLoaded = null;
+          for (const face of ['Courier New', 'DejaVu Sans', 'Liberation Mono']) {
+            style.textContent = `@font-face{font-family:Arial;src:local("${face}")}`;
+            // Absent local fonts reject on Linux. Retain a positive override test
+            // by selecting a known available local face, without any download.
+            const loaded = await document.fonts.load('17px Arial').catch(() => []);
+            if (loaded.length) { aliasLoaded = face; break; }
+          }
           const local = await api.collectDetailed({scope: 'detailed-browser-check'});
           style.remove();
           const create = document.createElement;
@@ -67,10 +72,12 @@ try {
           let blocked;
           try { blocked = await api.collectDetailed({scope: 'detailed-browser-check'}); }
           finally { document.createElement = create; }
-          return {original, remote, local, blocked, frames: document.querySelectorAll('iframe').length};
+          return {original, remote, local, blocked, aliasLoaded, frames: document.querySelectorAll('iframe').length};
         });
         assert.deepEqual(poisoning.original, poisoning.remote, `${name}: page web fonts`);
         assert.deepEqual(poisoning.original, poisoning.local, `${name}: page local font aliases`);
+        assert.ok(poisoning.aliasLoaded, `${name}: no local font fixture available`);
+        fontAliases.push(poisoning.aliasLoaded);
         assert.deepEqual(poisoning.blocked.detail, {gpu: null, fonts: null, canvas: null});
         assert.equal(poisoning.frames, 0);
         await page.reload();
@@ -88,7 +95,7 @@ try {
       elapsed.sort((a,b) => a-b);
       snapshots.push({name, snapshot: observations[0].snapshot});
       report.browsers.push({name, version: browser.version(), status: 'PASS', collections: observations.length,
-        distinctDigests: 1, available: Object.fromEntries(Object.entries(observations[0].snapshot.detail).map(([k,v]) => [k,v !== null])),
+        distinctDigests: 1, scales, fontAliases, available: Object.fromEntries(Object.entries(observations[0].snapshot.detail).map(([k,v]) => [k,v !== null])),
         timings: {medianMs: elapsed[Math.floor(elapsed.length / 2)], p95Ms: elapsed[Math.floor(elapsed.length * .95)], maxMs: elapsed.at(-1)},
         checks: ['viewport/DPR/reload/isolated-context stability', 'host font isolation', 'no external/font requests', 'blocked DOM => null', 'no iframe leaks']});
     } catch (e) {

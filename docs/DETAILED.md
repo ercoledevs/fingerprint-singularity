@@ -6,7 +6,7 @@
 
 - GPU: an unmasked WebGL renderer string, whitespace/case normalized. Generic, masked and known software renderer names are not used. Model and driver distinctions are retained. The context is explicitly released.
 - Fonts: presence-like text-width differences for a fixed list of 16 fonts against three fixed fallback families. This is a bounded heuristic, not full installed-font enumeration. `FontFaceSet.check()` is not used because it also succeeds for nonexistent fonts.
-- Canvas: one fixed 240×80 drawing with fixed colors, geometry, text and font size. Screen size, zoom and device pixel ratio are not read.
+- Canvas: one fixed 240×80 drawing with colors, curves and compositing, compared as RGBA pixels. Text is excluded because glyph rendering can depend on display density. PNG encoder metadata is excluded. Screen size, zoom and device pixel ratio are not read.
 
 Each probe is executed twice. A throw, null result, oversized result or disagreement yields `null`. Two agreeing samples do not establish stability across sessions or defeat session-seeded browser randomization. No attempt is made to bypass restricted APIs. Every accepted value is SHA-256 hashed with `[probe revision, scope, field, raw value]`; the raw value is not retained in the snapshot. Hashing is not anonymization.
 

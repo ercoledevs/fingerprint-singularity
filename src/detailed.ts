@@ -48,11 +48,17 @@ function canvasProbe(doc: Document): string | null {
   const ctx = context2d(doc); if (!ctx) return null;
   ctx.fillStyle = '#153a2b'; ctx.fillRect(0, 0, 240, 80);
   ctx.fillStyle = '#b7e49e'; ctx.fillRect(7, 9, 83, 29);
-  ctx.font = '17px Arial'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#eb87ad';
-  ctx.fillText('Singularity 0123 Ω ≠', 13, 32);
+  // Glyph rasterization can vary with display density even on a fixed canvas.
+  // Font availability is observed separately; this drawing uses geometry only.
+  ctx.fillStyle = '#eb87ad'; ctx.beginPath();
+  ctx.moveTo(13, 32); ctx.bezierCurveTo(39, 3, 57, 67, 83, 27); ctx.lineTo(31, 58); ctx.fill();
   ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = 'rgba(50,140,220,0.7)';
   ctx.beginPath(); ctx.arc(118, 42, 27, 0, Math.PI * 2); ctx.fill();
-  return ctx.canvas.toDataURL('image/png');
+  // Compare pixels, excluding PNG encoder metadata and serialization differences.
+  const pixels = ctx.getImageData(0, 0, 240, 80).data;
+  const chunks: string[] = [];
+  for (let i = 0; i < pixels.length; i += 4096) chunks.push(String.fromCharCode(...pixels.subarray(i, i + 4096)));
+  return chunks.join('');
 }
 function readStable(probe: (() => unknown) | undefined, maximum: number): string | null {
   try {
@@ -82,7 +88,7 @@ export async function collectDetailed(options: DetailedCollectOptions): Promise<
     }
     for (const key of DETAIL_KEYS) {
       // Access to injected properties may throw. Failure is never a matching value.
-      try { raw[key] = readStable(probes[key], key === 'canvas' ? 65536 : 512); } catch { /* unavailable */ }
+      try { raw[key] = readStable(probes[key], key === 'canvas' ? 76800 : 512); } catch { /* unavailable */ }
     }
   } catch { /* DOM isolation unavailable: keep detail null. */ }
   finally { frame?.remove(); }

@@ -13,7 +13,7 @@ test('detail collection hashes stable probes by scope; exceptions, noise and ove
  assert.ok(Object.values(s.detail).every(x=>/^[a-f0-9]{64}$/.test(x)));
  assert.ok(!JSON.stringify(s).includes('GPU model'));
  const other=await collectDetailed({scope:'other',environment,probes});assert.notEqual(s.detail.gpu,other.detail.gpu);
- const blocked=await collectDetailed({scope:'test',environment,probes:{gpu:()=>{throw Error('blocked');},fonts:()=>String(n++),canvas:()=> 'x'.repeat(65537)}});
+ const blocked=await collectDetailed({scope:'test',environment,probes:{gpu:()=>{throw Error('blocked');},fonts:()=>String(n++),canvas:()=> 'x'.repeat(76801)}});
  assert.deepEqual(blocked.detail,{gpu:null,fonts:null,canvas:null});assert.equal(matchDetailed(blocked,[]).reason,'insufficient-detail');
  assert.deepEqual((await collectDetailed({scope:'test',environment})).detail,blocked.detail);
 });
