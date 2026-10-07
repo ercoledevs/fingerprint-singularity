@@ -41,7 +41,7 @@ def load(path):
             if len(line) > 8192 or total > MAX_BYTES or number > MAX_RECORDS:
                 raise ValueError("Evaluation limit: 50,000 records, 8 KiB per line, 32 MiB total")
             try:
-                row = json.loads(line, object_pairs_hook=unique_object)
+                row = json.loads(line.decode("utf-8"), object_pairs_hook=unique_object)
                 validate(row)
                 identity = (row["project"], row["observationId"])
                 if identity in seen:

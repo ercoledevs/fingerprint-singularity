@@ -40,7 +40,7 @@ for (const [name, engine] of Object.entries({chromium, firefox, webkit})) {
   await page.getByLabel('Project name', {exact: true}).fill('Browser test ' + name);
   await page.getByLabel('Allowed origins', {exact: true}).fill(base);
   await page.getByRole('button', {name: 'Create project', exact: true}).click();
-  await page.getByText('Project saved. Copy its snippet from Integration.', {exact: true}).waitFor();
+  await page.getByRole('status').filter({hasText: 'Project saved. Copy its snippet from Integration.'}).waitFor();
   await page.getByRole('button', {name: 'Integration', exact: true}).click();
   await page.getByRole('heading', {name: '2. Identify a browser', exact: true}).waitFor();
   // Exercise the delivered SDK with a project created through the real GUI.

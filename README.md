@@ -36,6 +36,7 @@ singularity login --url http://127.0.0.1:8080
 singularity projects
 singularity events --project demo --method inferred --platform macos
 singularity --json events --project demo --prefix evt_ --limit 100
+singularity evaluate examples/evaluation.synthetic.jsonl
 ```
 
 Use one Compose profile at a time. The standalone CLI does not require Vue, Node.js, or direct database access. It provides Rich tables, event details, combined filters, cursor pagination and JSON output. See the [CLI reference](docs/CLI.md).

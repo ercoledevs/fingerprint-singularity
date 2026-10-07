@@ -120,3 +120,11 @@ def test_duplicate_chronology_keys_and_limits(tmp_path, monkeypatch):
     with pytest.raises(ValueError, match="limit"): ev.load(write(path, [observation(i) for i in range(3)]))
     path.write_text('')
     with pytest.raises(ValueError, match="no observations"): ev.load(path)
+
+
+@pytest.mark.parametrize("encoding", ["utf-16", "utf-32", "utf-8-sig"])
+def test_only_plain_utf8_is_accepted(tmp_path, encoding):
+    path = tmp_path / "encoding.jsonl"
+    path.write_bytes(json.dumps(observation()).encode(encoding))
+    with pytest.raises(ValueError, match="line 1"):
+        ev.load(path)

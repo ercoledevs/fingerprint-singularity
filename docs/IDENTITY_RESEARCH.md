@@ -133,6 +133,10 @@ These checks demonstrate the tested boundaries; absence of a message in a bounde
 
 The experiment used temporary profiles, which were removed at completion. Raw research artifacts are not included in the distributed package.
 
+## Offline evaluation
+
+Version 0.2 includes `singularity evaluate` for independently labeled JSONL observations. It reports output-ID continuity, false links, missed links, coverage, cross-browser pairs and device-balanced summaries. See the [evaluation contract and collection protocol](EVALUATION.md). This command is offline and does not modify production identification behavior.
+
 ## Implementation status
 
 The research supports evaluating stronger probabilistic evidence and, as a separate product option, an explicitly enabled shared installation ID. It does not establish that either improves this library in production yet.
