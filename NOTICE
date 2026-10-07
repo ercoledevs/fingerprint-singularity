@@ -1,0 +1,6 @@
+Fingerprint Singularity is an original implementation.
+FingerprintJS was examined as a public research reference; its source code is not bundled or copied here.
+Reference: https://github.com/fingerprintjs/fingerprintjs
+Inspected revision: dac5ae59409669f09aa09c0b2f44b7615b0520da (version 5.3.0, MIT).
+The name FingerprintJS identifies the upstream project; no affiliation or endorsement is implied.
+The project LICENSE is retained from ercoledevs/fingerprint-singularity's initial commit.
