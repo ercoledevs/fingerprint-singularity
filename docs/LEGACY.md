@@ -1,0 +1,107 @@
+# Legacy library reference
+
+[Back to the project](../README.md) · [Detailed observations](DETAILED.md)
+
+The original `singularity/v1` schema and `envelope/v1` policy remain supported. This reference covers the synchronous collector and family-omission matcher. New integrations can use the [detailed API](DETAILED.md).
+
+## Legacy results
+
+| Result | Meaning | What can change |
+|---|---|---|
+| `digest(snapshot)` | SHA-256 hash of a single observation, including its scope | Changes whenever a normalized value changes |
+| `match(snapshot, candidates)` | A compatible candidate among those supplied by the application | May retain the same `candidateId` with different data, or abstain |
+
+An application-assigned ID remains the same when that candidate is returned. To compare visits from different browsers, supply previous observations from your application, for example through your backend. No account is required. Candidate storage and retrieval are managed by your application.
+
+## Examples
+
+```ts
+import { collect, digest, match, type Candidate } from 'fingerprint-singularity'
+
+const snapshot = collect({ scope: 'my-app.example' })
+const fingerprint = await digest(snapshot)
+
+// The application supplies the full relevant set, with its own IDs and retention.
+// No previous observations are available yet in this example.
+const candidates: Candidate[] = []
+const result = match(snapshot, candidates)
+
+console.log(fingerprint) // sg1_<64 hexadecimal characters>: observation hash
+console.log(result.status, result.reason)
+if (result.status === 'matched') {
+  console.log(result.candidateId) // Hypothesized continuity, not authenticated identity
+}
+```
+
+Example of continuity when another browser does not expose memory:
+
+```ts
+const previous = {
+  schema: 'singularity/v1' as const,
+  scope: 'my-app.example',
+  signals: { platform: 'linux' as const, cores: 8, memory: 8, language: 'en', timezone: 'UTC' },
+}
+const current = { ...previous, signals: { ...previous.signals, memory: null } }
+match(current, [{ id: 'candidate-123', snapshot: previous }]).candidateId
+// 'candidate-123'; the two digests differ.
+```
+
+## Legacy signals
+
+| Family | Normalized value | Weight | Limitation |
+|---|---|---:|---|
+| Platform | `windows`, `macos`, `ios`, `android`, `linux`, `chromeos` | 3 | The reported platform can be altered; an iPad in desktop mode may appear as macOS |
+| Compute | Reported core count, rounded down into buckets from 1–64 | 2 | The browser may limit it; a change often causes abstention |
+| Compute | Reported memory, buckets from 0.25–64 GiB | 1 | Approximate and unavailable in some browsers |
+| Locale | Primary language, without region | 1 | Configurable separately in each browser |
+| Locale | Time zone name | 1 | Can change; different aliases remain distinct |
+
+Missing or blocked data is `null` and earns no points, even when missing on both sides. The full user agent string is not collected: it is read only to derive the platform family, without retaining versions or model information. Families are operational groupings, **not statistically independent evidence**.
+
+The legacy collector excludes screen, resolution, viewport, zoom, touch, GPU, WebGL, canvas, audio, fonts, IP, battery, and browser and operating system versions. Detailed mode additionally probes GPU, font availability and canvas; see [the detailed-mode contract](DETAILED.md).
+
+## Legacy matching with family omission
+
+The `envelope/v1` policy requires:
+
+1. Similarity and coverage of at least **0.75**, across all three families. The denominator includes missing signals. Different known platforms prevent qualification.
+2. A margin of at least **0.15** over the best rival without contradictions. When there are no rivals, the margin is `null` and this check passes.
+3. The same candidate must pass the checks after each of the three families is omitted in turn. Each reduced comparison requires both remaining families and recalculates the denominator.
+
+Every reduced trial reconsiders **all** candidates, including those initially rejected. Omitting the platform also removes its veto. A candidate therefore cannot pass solely because a fragile value excluded its rivals. The result exposes contributions, coverage, contradictions, and omission trials.
+
+These thresholds are fixed, versioned heuristics, not calibrated against a population. With the current weights, a change in core count can pass the initial threshold but fail the reduced trials. A change in a single signal with weight 1 may be tolerated. Abstention may be frequent.
+
+| Status | Meaning |
+|---|---|
+| `matched` | One candidate passes every trial within the supplied set |
+| `unmatched` | Empty list or no qualified candidate with sufficient evidence |
+| `abstain` | Incomplete evidence, ambiguous candidates, or an unstable result in reduced trials |
+
+Precedence: full validation → empty list → observation evidence → qualification → margin → omission trials. An error in any candidate fails the entire call; there are no partial results. `candidateId` is always `null` unless the status is `matched`. Do not automatically assign a new ID for every abstention: doing so would create falsely distinct devices. Do not automatically modify a candidate based on an uncertain match.
+
+The diagnostic `candidates` list preserves input order; the decision and omission reports are independent of that order. Ties are not resolved by arbitrarily assigning an ID.
+
+**Candidate selection matters:** supplying a single device with common data can produce an apparently unambiguous result. A pair of candidates with equivalent observations causes abstention. No hash or margin eliminates collisions in the source observations.
+
+## API and contracts
+
+- `collect({ scope, environment? }): Snapshot`: synchronous collection. The optional adapter makes tests reproducible; it is required in Node.
+- `canonicalize(snapshot): string`: v1 JSON tuple, frozen order, no timestamp.
+- `digest(snapshot): Promise<string>`: SHA-256 with the `sg1_` prefix; requires Web Crypto, with no random fallback.
+- `compare(left, right): Comparison`: pairwise comparison. `qualifies` does not mean `matched`: it does not check rivals or reduced trials.
+- `match(snapshot, candidates): MatchResult`: pure function; at most 256 candidates, with no truncation.
+- `parseSnapshot(json)` / `validateSnapshot(value)`: strictly validated inputs; return a copy.
+- `SCHEMA`, `POLICY_VERSION`, `POLICY`, `LIMITS`, `SingularityError`: exported contracts.
+
+Errors expose a `code`: `INVALID_INPUT`, `INCOMPATIBLE_SCHEMA`, `SCOPE_MISMATCH`, `LIMIT_EXCEEDED`, `DUPLICATE_ID`, `BROWSER_UNAVAILABLE`, `CRYPTO_UNAVAILABLE`.
+
+Scope and IDs: 1–128 characters in the ASCII alphabet documented by the validator. Snapshot JSON: at most 2,048 UTF-16 code units; also enforce an HTTP body limit before passing in network data. Different scopes are not compared and produce different digests. Scope is a public namespace, not an access control or protection against input modification. Objects with unknown properties, accessors, non-ordinary prototypes, or non-normalized values are rejected. A hostile JavaScript proxy in the same process is not an isolated or safe input: use size-limited JSON for untrusted data.
+
+## Data and lifecycle
+
+No persistent state: no cookies, localStorage, IndexedDB, HTTP calls, or recovery after deletion. Integrators decide the purpose, privacy notice, retention, expiration, and deletion of observations. Removing candidates from application storage and clearing application caches makes them unavailable to the library; there is no hidden recovery mechanism.
+
+The data can be spoofed and may be personal data. **Do not use digests, similarity, or matches as authentication, authorization, or anti-fraud evidence.** Hashing does not make this data anonymous. There is no automatic telemetry.
+
+Schema and policy versions are separate from the package version. Future changes to normalization or canonicalization will require a new schema; changes to weights, thresholds, or semantics will require a new policy. Do not mix schemas: the library rejects them. To roll back, reinstall the previous tarball and use only compatible candidates; this version neither runs migrations nor writes to storage.

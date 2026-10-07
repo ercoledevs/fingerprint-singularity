@@ -141,4 +141,4 @@ Version 0.2 includes `singularity evaluate` for independently labeled JSONL obse
 
 The research supports evaluating stronger probabilistic evidence and, as a separate product option, an explicitly enabled shared installation ID. It does not establish that either improves this library in production yet.
 
-The core library implements the five-signal collector, snapshot hashing, and family-omission matching described in the [API documentation](../README.md). Additional collectors and shared-identity transports described here are research directions, not available APIs.
+The original five-signal collector, snapshot hashing and family-omission matcher remain available through the [legacy API](LEGACY.md). Version 0.3 also implements the bounded GPU, font-availability and canvas probes described in the [detailed API](DETAILED.md). Other collectors and shared-identity transports discussed here remain research directions, not available APIs.

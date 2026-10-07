@@ -1,201 +1,129 @@
-# Fingerprint Singularity
+<div align="center">
 
 ![Singularity — Identification Platform](https://raw.githubusercontent.com/ercoledevs/fingerprint-singularity/main/docs/assets/banner.svg)
 
-**Browser observations, explainable identification, and a console you can host yourself.**
+[![CI](https://github.com/ercoledevs/fingerprint-singularity/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ercoledevs/fingerprint-singularity/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/fingerprint-singularity?color=b7e49e)](https://www.npmjs.com/package/fingerprint-singularity)
+[![MIT license](https://img.shields.io/badge/license-MIT-d7e7e1)](LICENSE)
 
-Fingerprint Singularity includes a TypeScript library, a Python API backed by MongoDB, a Vue backoffice, and a standalone terminal client. Collect display-independent observations, explore event and visitor IDs, and inspect the evidence behind each assignment.
+**Browser observations. Explainable identification. Your own infrastructure.**
 
-The core library has no runtime dependencies, network calls, cookies, storage, or permission requests. The optional platform manages events, candidate storage, retention and explicit browser enrollment.
+TypeScript library · Python API · MongoDB · Vue console · Terminal client
 
-## Install the library
+[Library](#library) · [Self-host](#self-host) · [CLI](#cli) · [Docs](#documentation) · [Support](#support)
+
+</div>
+
+## Library
 
 ```sh
 npm install fingerprint-singularity
 ```
 
-Import the core API from `fingerprint-singularity` and the optional self-hosted API adapter from `fingerprint-singularity/client`. TypeScript declarations are included. The Python/MongoDB/Vue platform and CLI are available in this repository and are deployed separately from the npm library.
-
-## Detailed identification
-
-Version 0.3 adds bounded GPU, font-availability and canvas probes. Blocked, unavailable or observably unstable probes become `null`; they never count as agreement. Probe outputs are hashed with the application scope. The collector does not read screen dimensions, make network requests or access storage.
+Collect scoped observations and compare them with candidates retained by your application:
 
 ```ts
-import { collectDetailed, digestDetailed, matchDetailed, type DetailedCandidate } from 'fingerprint-singularity'
+import { collectDetailed, digestDetailed, matchDetailed } from 'fingerprint-singularity'
 
 const snapshot = await collectDetailed({ scope: 'my-app.example' })
 const observationId = await digestDetailed(snapshot) // sg2_...
-const previousDetailedCandidates: DetailedCandidate[] = [] // Load your retained candidates here.
-const decision = matchDetailed(snapshot, previousDetailedCandidates)
+const decision = matchDetailed(snapshot, []) // Supply retained candidates here.
+
+console.log(observationId, decision.status, decision.candidateId)
 ```
 
-The `support/v2` policy requires the same known platform and core bucket, at least two agreeing detailed signals, and no conflict in any comparable detail. Multiple compatible candidates or incomplete compatible rivals produce an unassigned decision. A browser, GPU driver or font change can produce a new observation and a new inferred visitor; detailed mode prioritizes precision over tolerating rendering changes.
+The core has **zero runtime dependencies**, no network calls, cookies, storage or permission requests. It reads no screen dimensions. TypeScript declarations are included; browser hashing requires **HTTPS or localhost**.
 
-The hosted agent and console default to detailed mode. Upgrade the backend before the agent. Use `createAgent({ publicKey, mode: 'legacy' })` when deliberately retaining the previous collection path. Existing `collect`, `digest`, `compare` and `match` exports, `singularity/v1` observations and `envelope/v1` behavior remain available unchanged. V1 and v2 candidate pools are separate; old records are not rewritten. See [detailed API and upgrade notes](docs/DETAILED.md).
+Detailed mode combines platform and core buckets with scoped GPU, font-availability and canvas hashes. At least two detailed signals must agree, with no comparable conflict. Missing evidence remains `null`; ambiguous matches remain unassigned. [API and examples →](docs/DETAILED.md)
 
-## Start the platform
+> [!NOTE]
+> An observation hash describes the collected data; the backend assigns a visitor ID from retained evidence. Matching does not guarantee identity; browser, font, driver or privacy changes can affect continuity. Keep these IDs separate from authentication. Hashing does not anonymize the data.
 
-Requirements: Docker Engine with Compose v2, Python 3.9+ for initial setup, and approximately 2 GB available memory.
+## Self-host
+
+Run the Python API, MongoDB and Vue backoffice on your server. The platform is deployed separately from the npm library.
+
+**Requires:** Docker Compose v2 · Python 3.9+ for setup · approximately 2 GB RAM
 
 ```sh
 git clone https://github.com/ercoledevs/fingerprint-singularity.git
 cd fingerprint-singularity
 python3 scripts/setup.py
 docker compose --profile web up --build -d --wait
-# Open http://localhost:8080
 ```
 
-Sign in as `admin` using the password in the generated `.admin-password` file. Configuration and credentials are private local files and must not be committed.
+Open **[localhost:8080](http://localhost:8080)**. Sign in as `admin` with the password in `.admin-password`. Keep this file and `.env` private.
 
-The console includes a live identification demo, event search and inspection, project origin configuration, retention settings, and visitor token revocation/deletion. See [deployment and recovery](docs/DEPLOYMENT.md) and [platform API](docs/PLATFORM.md).
+The console includes a live demo, event and visitor search, decision inspection, project origins, retention, and token revocation/deletion. Connect your site with `fingerprint-singularity/client`. [Integration →](docs/PLATFORM.md) · [HTTPS, updates and backups →](docs/DEPLOYMENT.md)
 
-## Prefer the terminal?
+<details>
+<summary><strong>Upgrading an existing installation</strong></summary>
 
-Start the API-only profile and install the CLI with Python 3.12+:
+Upgrade the backend before the agent. The agent and console default to detailed mode; select `createAgent({ publicKey, mode: 'legacy' })` to retain the older collection path. Existing v1 exports and records remain unchanged; v1 and v2 candidate pools are separate. [Upgrade guide →](docs/DETAILED.md#upgrade-order)
+
+</details>
+
+## CLI
+
+Search IDs and inspect events with Rich tables, combined filters, cursor pagination and JSON output. Requires Python 3.12+ and a running API; Vue and Node.js are unnecessary on the CLI machine.
+
+From the cloned repository:
 
 ```sh
-docker compose --profile headless up --build -d --wait
 pipx install ./server
 singularity login --url http://127.0.0.1:8080
-singularity projects
 singularity events --project demo --method inferred --platform macos
 singularity --json events --project demo --prefix evt_ --limit 100
-singularity evaluate examples/evaluation.synthetic.jsonl
 ```
 
-Use one Compose profile at a time. The standalone CLI does not require Vue, Node.js, or direct database access. It provides Rich tables, event details, combined filters, cursor pagination and JSON output. See the [CLI reference](docs/CLI.md).
+<details>
+<summary><strong>Run an API-only server</strong></summary>
 
-## Legacy results
-
-| Result | Meaning | What can change |
-|---|---|---|
-| `digest(snapshot)` | SHA-256 hash of a single observation, including its scope | Changes whenever a normalized value changes |
-| `match(snapshot, candidates)` | A compatible candidate among those supplied by the application | May retain the same `candidateId` with different data, or abstain |
-
-An application-assigned ID remains the same when that candidate is returned. To compare visits from different browsers, supply previous observations from your application, for example through your backend. No account is required. Candidate storage and retrieval are managed by your application.
-
-## Getting started
-
-Development requires Node.js 20+. Browser code requires modern ES modules; hashing requires Web Crypto over HTTPS or localhost.
+After running `python3 scripts/setup.py`, start the headless profile. If the web profile is running, stop its web service first; both profiles use port 8080.
 
 ```sh
-git clone https://github.com/ercoledevs/fingerprint-singularity.git
-cd fingerprint-singularity
+docker compose --profile web stop web
+docker compose --profile headless up --build -d --wait
+```
+
+[CLI reference →](docs/CLI.md) · [Switch deployment profiles →](docs/DEPLOYMENT.md#headless-server)
+
+</details>
+
+## Documentation
+
+| Guide | Contents |
+| :--- | :--- |
+| [Detailed API](docs/DETAILED.md) | Probes, matching rules, schemas and upgrades |
+| [Platform API](docs/PLATFORM.md) | Integration, identifiers, enrollment and operating limits |
+| [Deployment](docs/DEPLOYMENT.md) | Docker, HTTPS, credentials, backup and recovery |
+| [CLI](docs/CLI.md) | ID searches, filters, pagination and automation |
+| [Evaluation](docs/EVALUATION.md) · [Verification](docs/VERIFICATION.md) | Labeled datasets, measured results and test scope |
+| [Architecture](docs/ARCHITECTURE.md) · [Research](docs/RESEARCH.md) | Design decisions and signal provenance |
+| [Legacy API](docs/LEGACY.md) | Original collector, contracts and family-omission policy |
+
+<details>
+<summary><strong>Develop and verify the library</strong></summary>
+
+Requires Node.js 20+. From the cloned repository:
+
+```sh
 npm ci
-npm run check
-npm run demo
-# http://127.0.0.1:4173
+npm run check                   # Build, contracts and types
+npx playwright install          # Install test browsers
+npm run test:browser             # Legacy browser checks and demo
+npm run test:detailed-browser    # Detailed probes across browser engines
+npm run test:package             # Packed consumer imports
+npm run bench                   # Performance and memory
+npm run demo                    # Local demo at http://127.0.0.1:4173
 ```
 
-To install a local development build in another project:
+Use `npm pack` to create a tarball for local integration. CI also checks the deployed platform. See [verification evidence](docs/VERIFICATION.md) for results and limitations.
 
-```sh
-npm pack
-# In the consuming project, install the generated tarball:
-npm install /path/to/fingerprint-singularity-0.3.0.tgz
-```
+</details>
 
-```ts
-import { collect, digest, match, type Candidate } from 'fingerprint-singularity'
+## Support
 
-const snapshot = collect({ scope: 'my-app.example' })
-const fingerprint = await digest(snapshot)
+If Singularity is useful to you, [**support its development via PayPal ↗**](https://www.paypal.me/SalvatoreErcole117).
 
-// The application supplies the full relevant set, with its own IDs and retention.
-// No previous observations are available yet in this example.
-const candidates: Candidate[] = []
-const result = match(snapshot, candidates)
-
-console.log(fingerprint) // sg1_<64 hexadecimal characters>: observation hash
-console.log(result.status, result.reason)
-if (result.status === 'matched') {
-  console.log(result.candidateId) // Hypothesized continuity, not authenticated identity
-}
-```
-
-Example of continuity when another browser does not expose memory:
-
-```ts
-const previous = {
-  schema: 'singularity/v1' as const,
-  scope: 'my-app.example',
-  signals: { platform: 'linux' as const, cores: 8, memory: 8, language: 'en', timezone: 'UTC' },
-}
-const current = { ...previous, signals: { ...previous.signals, memory: null } }
-match(current, [{ id: 'candidate-123', snapshot: previous }]).candidateId
-// 'candidate-123'; the two digests differ.
-```
-
-## Legacy signals
-
-| Family | Normalized value | Weight | Limitation |
-|---|---|---:|---|
-| Platform | `windows`, `macos`, `ios`, `android`, `linux`, `chromeos` | 3 | The reported platform can be altered; an iPad in desktop mode may appear as macOS |
-| Compute | Reported core count, rounded down into buckets from 1–64 | 2 | The browser may limit it; a change often causes abstention |
-| Compute | Reported memory, buckets from 0.25–64 GiB | 1 | Approximate and unavailable in some browsers |
-| Locale | Primary language, without region | 1 | Configurable separately in each browser |
-| Locale | Time zone name | 1 | Can change; different aliases remain distinct |
-
-Missing or blocked data is `null` and earns no points, even when missing on both sides. The full user agent string is not collected: it is read only to derive the platform family, without retaining versions or model information. Families are operational groupings, **not statistically independent evidence**.
-
-The legacy collector excludes screen, resolution, viewport, zoom, touch, GPU, WebGL, canvas, audio, fonts, IP, battery, and browser and operating system versions. Detailed mode additionally probes GPU, font availability and canvas; see the detailed-mode contract above.
-
-## Legacy matching with family omission
-
-The `envelope/v1` policy requires:
-
-1. Similarity and coverage of at least **0.75**, across all three families. The denominator includes missing signals. Different known platforms prevent qualification.
-2. A margin of at least **0.15** over the best rival without contradictions. When there are no rivals, the margin is `null` and this check passes.
-3. The same candidate must pass the checks after each of the three families is omitted in turn. Each reduced comparison requires both remaining families and recalculates the denominator.
-
-Every reduced trial reconsiders **all** candidates, including those initially rejected. Omitting the platform also removes its veto. A candidate therefore cannot pass solely because a fragile value excluded its rivals. The result exposes contributions, coverage, contradictions, and omission trials.
-
-These thresholds are fixed, versioned heuristics, not calibrated against a population. With the current weights, a change in core count can pass the initial threshold but fail the reduced trials. A change in a single signal with weight 1 may be tolerated. Abstention may be frequent.
-
-| Status | Meaning |
-|---|---|
-| `matched` | One candidate passes every trial within the supplied set |
-| `unmatched` | Empty list or no qualified candidate with sufficient evidence |
-| `abstain` | Incomplete evidence, ambiguous candidates, or an unstable result in reduced trials |
-
-Precedence: full validation → empty list → observation evidence → qualification → margin → omission trials. An error in any candidate fails the entire call; there are no partial results. `candidateId` is always `null` unless the status is `matched`. Do not automatically assign a new ID for every abstention: doing so would create falsely distinct devices. Do not automatically modify a candidate based on an uncertain match.
-
-The diagnostic `candidates` list preserves input order; the decision and omission reports are independent of that order. Ties are not resolved by arbitrarily assigning an ID.
-
-**Candidate selection matters:** supplying a single device with common data can produce an apparently unambiguous result. A pair of candidates with equivalent observations causes abstention. No hash or margin eliminates collisions in the source observations.
-
-## API and contracts
-
-- `collect({ scope, environment? }): Snapshot`: synchronous collection. The optional adapter makes tests reproducible; it is required in Node.
-- `canonicalize(snapshot): string`: v1 JSON tuple, frozen order, no timestamp.
-- `digest(snapshot): Promise<string>`: SHA-256 with the `sg1_` prefix; requires Web Crypto, with no random fallback.
-- `compare(left, right): Comparison`: pairwise comparison. `qualifies` does not mean `matched`: it does not check rivals or reduced trials.
-- `match(snapshot, candidates): MatchResult`: pure function; at most 256 candidates, with no truncation.
-- `parseSnapshot(json)` / `validateSnapshot(value)`: strictly validated inputs; return a copy.
-- `SCHEMA`, `POLICY_VERSION`, `POLICY`, `LIMITS`, `SingularityError`: exported contracts.
-
-Errors expose a `code`: `INVALID_INPUT`, `INCOMPATIBLE_SCHEMA`, `SCOPE_MISMATCH`, `LIMIT_EXCEEDED`, `DUPLICATE_ID`, `BROWSER_UNAVAILABLE`, `CRYPTO_UNAVAILABLE`.
-
-Scope and IDs: 1–128 characters in the ASCII alphabet documented by the validator. Snapshot JSON: at most 2,048 UTF-16 code units; also enforce an HTTP body limit before passing in network data. Different scopes are not compared and produce different digests. Scope is a public namespace, not an access control or protection against input modification. Objects with unknown properties, accessors, non-ordinary prototypes, or non-normalized values are rejected. A hostile JavaScript proxy in the same process is not an isolated or safe input: use size-limited JSON for untrusted data.
-
-## Data and lifecycle
-
-No persistent state: no cookies, localStorage, IndexedDB, HTTP calls, or recovery after deletion. Integrators decide the purpose, privacy notice, retention, expiration, and deletion of observations. Removing candidates from application storage and clearing application caches makes them unavailable to the library; there is no hidden recovery mechanism.
-
-The data can be spoofed and may be personal data. **Do not use digests, similarity, or matches as authentication, authorization, or anti-fraud evidence.** Hashing does not make this data anonymous. There is no automatic telemetry.
-
-Schema and policy versions are separate from the package version. Future changes to normalization or canonicalization will require a new schema; changes to weights, thresholds, or semantics will require a new policy. Do not mix schemas: the library rejects them. To roll back, reinstall the previous tarball and use only compatible candidates; this version neither runs migrations nor writes to storage.
-
-## Verification and development
-
-```sh
-npm run check                    # build, contracts, and types
-npx playwright install          # required browsers, if missing
-npm run test:browser             # Chromium, Firefox, WebKit + demo
-npm run bench                   # scaling, warmup, median/p95, Node heap
-npm pack --dry-run              # distributed contents
-```
-
-The browser check fails if an engine cannot start: there are no silent skips. Local regression budgets: collection p95 <10 ms, matching against 256 candidates p95 <50 ms, retained Node heap after GC <32 MiB. These are verification limits for this environment, not promises for every device. Measurements do not demonstrate accuracy. Local reports in `artifacts/` are not versioned; [VERIFICATION.md](docs/VERIFICATION.md) describes the delivered run and its limitations.
-
-Graphify indexes `src` for development queries, without external LLMs. [ARCHITECTURE.md](docs/ARCHITECTURE.md) describes modules and policy; [RESEARCH.md](docs/RESEARCH.md) records provenance and decisions. MIT license, retained from the project's original repository.
+Contributions are optional. Singularity remains available under the [MIT license](LICENSE).
