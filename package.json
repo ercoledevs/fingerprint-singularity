@@ -1,17 +1,40 @@
 {
   "name": "fingerprint-singularity",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Display-independent observations and conservative, explainable candidate matching. No universal device identity guarantee.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } },
-  "files": ["dist", "docs", "README.md", "LICENSE", "NOTICE"],
-  "repository": { "type": "git", "url": "git+https://github.com/ercoledevs/fingerprint-singularity.git" },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./client/agent.d.ts",
+      "import": "./client/agent.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "client"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ercoledevs/fingerprint-singularity.git"
+  },
   "homepage": "https://github.com/ercoledevs/fingerprint-singularity#readme",
-  "bugs": { "url": "https://github.com/ercoledevs/fingerprint-singularity/issues" },
+  "bugs": {
+    "url": "https://github.com/ercoledevs/fingerprint-singularity/issues"
+  },
   "sideEffects": false,
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "license": "MIT",
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -21,7 +44,11 @@
     "test:browser": "npm run build && node scripts/browser-check.mjs",
     "bench": "npm run build && node --expose-gc scripts/benchmark.mjs",
     "demo": "npm run build && node scripts/serve.mjs",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "build:console": "npm run build && npm run build --prefix web && node scripts/build-sdk.mjs"
   },
-  "devDependencies": { "playwright": "1.58.2", "typescript": "5.9.3" }
+  "devDependencies": {
+    "playwright": "1.58.2",
+    "typescript": "5.9.3"
+  }
 }

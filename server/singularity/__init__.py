@@ -1,0 +1,1 @@
+"""Fingerprint Singularity platform."""

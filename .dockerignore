@@ -1,0 +1,15 @@
+.git
+node_modules
+web/node_modules
+dist
+web/dist
+.venv
+artifacts
+.env
+.admin-password
+.local-state
+backups
+graphify-out
+*.tgz
+**/__pycache__
+**/*.egg-info

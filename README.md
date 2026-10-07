@@ -1,8 +1,41 @@
 # Fingerprint Singularity
 
-A TypeScript library for collecting **fingerprints independent of screen data** and comparing observations with previous candidates, even when some signals change. No runtime dependencies, network calls, cookies, storage, or permission requests.
+**Browser observations, explainable identification, and a console you can host yourself.**
 
-The API provides deterministic snapshot hashes and explainable, probabilistic candidate matching. Your application manages candidate IDs and previous observations.
+Fingerprint Singularity includes a TypeScript library, a Python API backed by MongoDB, a Vue backoffice, and a standalone terminal client. Collect display-independent observations, explore event and visitor IDs, and inspect the evidence behind each assignment.
+
+The core library has no runtime dependencies, network calls, cookies, storage, or permission requests. The optional platform manages events, candidate storage, retention and explicit browser enrollment.
+
+## Start the platform
+
+Requirements: Docker Engine with Compose v2, Python 3.9+ for initial setup, and approximately 2 GB available memory.
+
+```sh
+git clone https://github.com/ercoledevs/fingerprint-singularity.git
+cd fingerprint-singularity
+python3 scripts/setup.py
+docker compose --profile web up --build -d --wait
+# Open http://localhost:8080
+```
+
+Sign in as `admin` using the password in the generated `.admin-password` file. Configuration and credentials are private local files and must not be committed.
+
+The console includes a live identification demo, event search and inspection, project origin configuration, retention settings, and visitor token revocation/deletion. See [deployment and recovery](docs/DEPLOYMENT.md) and [platform API](docs/PLATFORM.md).
+
+## Prefer the terminal?
+
+Start the API-only profile and install the CLI with Python 3.12+:
+
+```sh
+docker compose --profile headless up --build -d --wait
+pipx install ./server
+singularity login --url http://127.0.0.1:8080
+singularity projects
+singularity events --project demo --method inferred --platform macos
+singularity --json events --project demo --prefix evt_ --limit 100
+```
+
+Use one Compose profile at a time. The standalone CLI does not require Vue, Node.js, or direct database access. It provides Rich tables, event details, combined filters, cursor pagination and JSON output. See the [CLI reference](docs/CLI.md).
 
 ## Two different results
 
@@ -31,7 +64,7 @@ The package is not published on npm. To use it in another project:
 ```sh
 npm pack
 # In the consuming project, install the generated tarball:
-npm install /path/to/fingerprint-singularity-0.1.0.tgz
+npm install /path/to/fingerprint-singularity-0.2.0.tgz
 ```
 
 ```ts

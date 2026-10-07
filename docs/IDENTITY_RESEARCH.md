@@ -1,6 +1,6 @@
 # Stronger fingerprints and cross-browser identity
 
-Research date: **7 October 2026**. Scope: the existing automatic, probabilistic, display-independent library, plus a feasibility study of sharing an identifier across browsers and private sessions. This document records research and design hypotheses, **not implemented features**. No new signal collection, storage, permissions, network transport, or identity bridge has been added to the library.
+Research date: **7 October 2026**. Scope: the existing automatic, probabilistic, display-independent library, plus a feasibility study of sharing an identifier across browsers and private sessions. This document records research and design hypotheses for additional signals and cross-browser sharing. Version 0.2 adds an optional [self-hosted platform](PLATFORM.md) with event storage, an API and explicit browser-local enrollment. The core collector is unchanged; no cross-browser identity bridge is implemented.
 
 ## Findings
 
@@ -137,4 +137,4 @@ The experiment used temporary profiles, which were removed at completion. Raw re
 
 The research supports evaluating stronger probabilistic evidence and, as a separate product option, an explicitly enabled shared installation ID. It does not establish that either improves this library in production yet.
 
-Version 0.1.0 implements the five-signal collector, snapshot hashing, and family-omission matching described in the [API documentation](../README.md). Additional collectors and shared-identity transports described here are research directions, not available APIs.
+The core library implements the five-signal collector, snapshot hashing, and family-omission matching described in the [API documentation](../README.md). Additional collectors and shared-identity transports described here are research directions, not available APIs.

@@ -17,3 +17,38 @@ jobs:
       - run: npm run test:browser
       - run: npm run bench
       - run: npm pack --dry-run
+  platform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts && npm run build
+      - run: python -m pip install './server[server,test]'
+      - run: python scripts/setup.py
+      - run: docker compose -f compose.yaml -f .github/compose.test.yaml --profile web up --build -d --wait
+      - run: python scripts/verify-platform.py
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: node scripts/platform-browser-check.mjs
+      - name: Headless profile
+        run: |
+          docker compose --profile web stop web
+          docker compose --profile headless up -d --wait
+          curl --fail http://localhost:8080/api/health
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/)" = 404
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: platform-browser-evidence
+          path: artifacts/platform
+      - name: Service logs
+        if: failure()
+        run: docker compose logs --tail=100 api web gateway
+      - name: Clean disposable stack
+        if: always()
+        run: docker compose -f compose.yaml -f .github/compose.test.yaml --profile web --profile headless down -v
