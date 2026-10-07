@@ -32,7 +32,7 @@ jobs:
       - run: python -m pip install './server[server,test]'
       - run: python scripts/setup.py
       - run: docker compose -f compose.yaml -f .github/compose.test.yaml --profile web up --build -d --wait
-      - run: python scripts/verify-platform.py
+      - run: python scripts/ci-report.py
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: node scripts/platform-browser-check.mjs
       - name: Headless profile

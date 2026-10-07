@@ -45,6 +45,9 @@ def main():
     observation = dict(schema='singularity/v1', scope=p['publicKey'], signals=dict(platform='macos', cores=8, memory=8, language='en', timezone='UTC'))
     response = c.post('/api/v1/identify/' + p['publicKey'], headers={'Origin': BASE}, json=dict(snapshot=observation, requestId='recovery-request-0001', remember=True))
     response.raise_for_status(); event = response.json()
+    survivor_response = c.post('/api/v1/identify/' + p['publicKey'], headers={'Origin': BASE}, json=dict(snapshot=observation, requestId='recovery-survivor-001', remember=True))
+    survivor_response.raise_for_status(); survivor = survivor_response.json()
+    original_survivor = c.get(f'/api/admin/projects/{p["_id"]}/events/{survivor["eventId"]}').json()
     with tempfile.TemporaryDirectory() as directory:
         session = Path(directory) / 'session.json'
         cmd = [shutil.which('singularity'), '--session-file', str(session), '--json']
@@ -70,14 +73,16 @@ def main():
     docker('stop', 'api')
     subprocess.run([sys.executable, 'scripts/setup.py', '--rotate'], check=True)
     docker('run', '--rm', '--no-deps', '-T', 'api', 'python', '-m', 'singularity.maintenance', 'restore', '--replace', input=archive)
-    docker('up', '-d', '--force-recreate', 'api'); ready()
+    docker('--profile', 'web', 'up', '-d', '--force-recreate', 'api', 'web'); ready()
     assert c.get('/api/admin/projects').status_code == 401
     fresh = login()
-    assert fresh.get(f'/api/admin/projects/{p["_id"]}/events').json()['items'] == []
+    retained = fresh.get(f'/api/admin/projects/{p["_id"]}/events').json()['items']
+    assert len(retained) == 1 and retained[0] == original_survivor
     rejected = fresh.post('/api/v1/identify/' + p['publicKey'], headers={'Origin': BASE}, json=dict(snapshot=observation, requestId='restored-token-00001', token=event['token']))
     assert rejected.status_code == 410
     docker('restart', 'mongo'); ready()
     assert fresh.get('/api/admin/projects').status_code == 200
+    assert fresh.get(f'/api/admin/projects/{p["_id"]}/events/{survivor["eventId"]}').json() == original_survivor
     print('PASS deployed Mongo/API restart, offline backup/restore, deletion replay, credential rotation')
     c.close(); fresh.close()
 

@@ -9,6 +9,8 @@ from .store import Store
 
 
 def backup(store, output):
+    if not store.ready or store.quarantine.exists():
+        raise ValueError("Cannot back up an incomplete restore")
     header = dict(format="singularity-backup/v1", stateId=store.state_id,
                   secretFingerprint=hashlib.sha256(store.config["secret"].encode()).hexdigest(), createdAt=now())
     output.write(json_util.dumps(header) + "\n")
@@ -48,6 +50,7 @@ def restore(store, source):
             marker.flush()
             import os
             os.fsync(marker.fileno())
+        store.sync_state_directory()
         store.ready = False
         for name in ("sessions", "events", "projects"):
             store.db[name].delete_many({})
@@ -59,6 +62,7 @@ def restore(store, source):
         store.events.update_many({}, {"$unset": {"tokenHash": ""}})
         store.replay()
         store.quarantine.unlink()
+        store.sync_state_directory()
         store.ready = True
 
 
@@ -70,7 +74,7 @@ def main():
     if args.operation == "restore" and not args.replace:
         parser.error("Restore requires --replace and stopped API traffic")
     cfg = settings()
-    cfg["maintenance"] = True
+    cfg["maintenance"] = args.operation == 'restore'
     store = Store(cfg)
     try:
         if args.operation == "backup":

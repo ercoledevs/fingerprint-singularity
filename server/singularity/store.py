@@ -20,6 +20,7 @@ class Store:
         self.ledger = path / "deletions.jsonl"
         self.quarantine = path / "restore.pending"
         if self.quarantine.exists() and not config.get("maintenance"):
+            self.lockfile.close()
             raise RuntimeError("Restore incomplete; finish recovery before starting the API")
         state_id = path / "state-id"
         if not state_id.exists():
@@ -40,6 +41,7 @@ class Store:
         self.events.create_index([("project", ASCENDING), ("requestKey", ASCENDING)], unique=True)
         self.events.create_index([("project", 1), ("anchor", 1), ("expiresAt", 1)])
         self.events.create_index([("project", 1), ("createdAt", -1), ("_id", -1)])
+        self.events.create_index([("project", 1), ("_id", 1)])
         for field in ["visitorId", "digest", "method", "reason", "snapshot.signals.platform"]:
             self.events.create_index([("project", 1), (field, 1), ("createdAt", -1), ("_id", -1)])
         self.events.create_index("expiresAt", expireAfterSeconds=0)
@@ -54,6 +56,13 @@ class Store:
 
     def refresh_origins(self):
         self.origins = {p['publicKey']: tuple(p['origins']) for p in self.projects.find({}, {'publicKey': 1, 'origins': 1}).limit(32)}
+
+    def sync_state_directory(self):
+        fd = os.open(self.ledger.parent, os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
 
     @contextmanager
     def serial(self):
@@ -95,6 +104,7 @@ class Store:
                 stream.write(json.dumps(item, separators=(",", ":")) + "\n")
                 stream.flush()
                 os.fsync(stream.fileno())
+            self.sync_state_directory()
             self.apply_deletion(item)
             if item['kind'] == 'project':
                 self.refresh_origins()

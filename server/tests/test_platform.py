@@ -255,3 +255,75 @@ def test_concurrent_assignment_retries(client):
     assert len({r['visitorId'] for r in results}) == 1
     assert len({r['eventId'] for r in results}) == 8
     assert client.store.events.count_documents({'anchor': True}) == 1
+
+
+def test_synthetic_population_measurements(client):
+    import itertools
+    import json
+    import random
+    import resource
+    import sys
+    from pathlib import Path
+    seed = client.store.events.find_one({'_id': identify(client).json()['eventId']})
+    vectors = list(itertools.product(['macos','windows','linux','android'], [2,4,8,16], [2,4,8], ['en','it','de'], ['UTC','Europe/Rome','America/New_York']))
+    random.Random(314159).shuffle(vectors)
+    results = []
+    for size in (1, 8, 64, 256, 257):
+        client.store.events.delete_many({})
+        docs = []
+        for i in range(size):
+            d = copy.deepcopy(seed)
+            d.update(_id='evt_population' + str(i), visitorId='vis_population' + str(i), requestKey='population' + str(i))
+            if i:
+                d['snapshot']['signals'] = dict(zip(['platform','cores','memory','language','timezone'], vectors[i]))
+            docs.append(d)
+        client.store.events.insert_many(docs)
+        durations, assigned = [], 0
+        for _ in range(15):
+            start = time.perf_counter()
+            r = identify(client); assert r.status_code == 200
+            durations.append((time.perf_counter() - start) * 1000)
+            assigned += r.json()['visitorId'] is not None
+        plan = client.store.db.command('explain', {'find': 'events', 'filter': {'project':'demo','anchor':True,'expiresAt':{'$gt':now()}}, 'limit':257}, verbosity='executionStats')
+        examined = plan['executionStats']['totalDocsExamined']
+        assert examined <= 257
+        durations.sort()
+        results.append(dict(candidates=size, requests=15, assigned=assigned, unassigned=15-assigned, p95Ms=round(durations[-1],3), p99Ms=round(durations[-1],3), documentsExamined=examined))
+    rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    output = dict(workload='Deterministic synthetic observations; serial TestClient HTTP handling with actual MongoDB. Not field accuracy or network latency.',
+                  mongo=client.store.db.command('buildInfo')['version'], python=sys.version.split()[0],
+                  processPeakRssMiB=round(rss/(1024*1024 if sys.platform=='darwin' else 1024),2),
+                  writeQueueCapacity=0, admissionLimit=32, scenarios=results)
+    path = Path('artifacts/platform'); path.mkdir(parents=True, exist_ok=True)
+    (path/'performance.json').write_text(json.dumps(output,indent=2))
+
+
+def test_interrupted_restore_blocks_startup_and_backup(client, monkeypatch):
+    identify(client, remember=True)
+    archive = io.StringIO(); backup(client.store, archive)
+    cfg = dict(client.store.config); cfg['secret'] = 'c' * 64
+    client.store.config['secret'] = cfg['secret']
+    original = client.store.db.projects.insert_one
+    def fail(*args, **kwargs): raise AutoReconnect('injected replacement failure')
+    monkeypatch.setattr(client.store.db.projects, 'insert_one', fail)
+    # Store collection attribute is cached for injection; restore uses db[name].
+    from unittest.mock import patch
+    from pymongo.synchronous.collection import Collection
+    original_insert = Collection.insert_one
+    def injected(collection, *a, **k):
+        if collection.name == 'projects': raise AutoReconnect('injected replacement failure')
+        return original_insert(collection, *a, **k)
+    with patch.object(Collection, 'insert_one', injected):
+        with pytest.raises(AutoReconnect): restore(client.store, io.StringIO(archive.getvalue()))
+    assert client.store.quarantine.exists()
+    with pytest.raises(ValueError): backup(client.store, io.StringIO())
+    client.store.close()
+    with pytest.raises(RuntimeError, match='Restore incomplete'): Store(cfg)
+    recovered = Store({**cfg, 'maintenance': True})
+    with pytest.raises(ValueError): backup(recovered, io.StringIO())
+    restore(recovered, io.StringIO(archive.getvalue()))
+    assert recovered.events.count_documents({}) == 1
+    recovered.close()
+    app.state.store = Store(cfg)
+    client.store = app.state.store
+    assert client.store.ready and not client.store.quarantine.exists()
