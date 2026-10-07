@@ -10,15 +10,29 @@ for (const [name, engine] of Object.entries({chromium, firefox, webkit})) {
   const page = await browser.newPage({viewport: {width: 1365, height: 1000}});
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
+  async function identify(buttonName) {
+    const [response] = await Promise.all([
+      page.waitForResponse(r => r.request().method() === 'POST' && r.url().includes('/api/v1/identify/')),
+      page.getByRole('button', {name: buttonName, exact: true}).click(),
+    ]);
+    const data = await response.json();
+    // CI uses disposable browser profiles; never print tokens or credentials.
+    console.log(JSON.stringify({engine: name, status: response.status(), method: data.method,
+      reason: data.reason, signals: response.request().postDataJSON().snapshot.signals}));
+    assert.equal(response.status(), 200, typeof data.detail === 'string' ? data.detail : 'Identification response');
+    return data;
+  }
   await page.goto(base);
-  await page.getByRole('button', {name: 'Identify this browser', exact: true}).click();
+  await identify('Identify this browser');
   await page.getByRole('button', {name: 'Identify again', exact: true}).waitFor();
   assert.match(await page.getByTestId('event-id').innerText(), /^evt_/);
   await page.getByLabel('Remember this browser', {exact: true}).check();
-  await page.getByRole('button', {name: 'Identify again', exact: true}).click();
+  const enrollment = await identify('Identify again');
+  assert.equal(enrollment.method, 'enrolled', enrollment.reason);
   await page.getByText('explicit-enrollment', {exact: true}).waitFor();
   const visitor = await page.getByTestId('visitor-id').innerText();
-  await page.getByRole('button', {name: 'Identify again', exact: true}).click();
+  const remembered = await identify('Identify again');
+  assert.equal(remembered.method, 'remembered', remembered.reason);
   await page.getByText('possession-token', {exact: true}).waitFor();
   assert.equal(await page.getByTestId('visitor-id').innerText(), visitor);
   await page.screenshot({path: `artifacts/platform/${name}-desktop.png`, fullPage: true});
