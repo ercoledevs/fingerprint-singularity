@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fingerprint-singularity-console"
-version = "0.2.0"
+version = "0.3.0"
 description = "Self-hosted browser identification API and terminal console"
 requires-python = ">=3.12"
 dependencies = ["httpx==0.28.1", "rich==15.0.0"]

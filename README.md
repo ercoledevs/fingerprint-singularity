@@ -16,6 +16,23 @@ npm install fingerprint-singularity
 
 Import the core API from `fingerprint-singularity` and the optional self-hosted API adapter from `fingerprint-singularity/client`. TypeScript declarations are included. The Python/MongoDB/Vue platform and CLI are available in this repository and are deployed separately from the npm library.
 
+## Detailed identification
+
+Version 0.3 adds bounded GPU, font-availability and canvas probes. Blocked, unavailable or observably unstable probes become `null`; they never count as agreement. Probe outputs are hashed with the application scope. The collector does not read screen dimensions, make network requests or access storage.
+
+```ts
+import { collectDetailed, digestDetailed, matchDetailed, type DetailedCandidate } from 'fingerprint-singularity'
+
+const snapshot = await collectDetailed({ scope: 'my-app.example' })
+const observationId = await digestDetailed(snapshot) // sg2_...
+const previousDetailedCandidates: DetailedCandidate[] = [] // Load your retained candidates here.
+const decision = matchDetailed(snapshot, previousDetailedCandidates)
+```
+
+The `support/v2` policy requires the same known platform and core bucket, at least two agreeing detailed signals, and no conflict in any comparable detail. Multiple compatible candidates or incomplete compatible rivals produce an unassigned decision. A browser, GPU driver or font change can produce a new observation and a new inferred visitor; detailed mode prioritizes precision over tolerating rendering changes.
+
+The hosted agent and console default to detailed mode. Upgrade the backend before the agent. Use `createAgent({ publicKey, mode: 'legacy' })` when deliberately retaining the previous collection path. Existing `collect`, `digest`, `compare` and `match` exports, `singularity/v1` observations and `envelope/v1` behavior remain available unchanged. V1 and v2 candidate pools are separate; old records are not rewritten. See [detailed API and upgrade notes](docs/DETAILED.md).
+
 ## Start the platform
 
 Requirements: Docker Engine with Compose v2, Python 3.9+ for initial setup, and approximately 2 GB available memory.
@@ -48,7 +65,7 @@ singularity evaluate examples/evaluation.synthetic.jsonl
 
 Use one Compose profile at a time. The standalone CLI does not require Vue, Node.js, or direct database access. It provides Rich tables, event details, combined filters, cursor pagination and JSON output. See the [CLI reference](docs/CLI.md).
 
-## Two different results
+## Legacy results
 
 | Result | Meaning | What can change |
 |---|---|---|
@@ -75,7 +92,7 @@ To install a local development build in another project:
 ```sh
 npm pack
 # In the consuming project, install the generated tarball:
-npm install /path/to/fingerprint-singularity-0.2.0.tgz
+npm install /path/to/fingerprint-singularity-0.3.0.tgz
 ```
 
 ```ts
@@ -109,7 +126,7 @@ match(current, [{ id: 'candidate-123', snapshot: previous }]).candidateId
 // 'candidate-123'; the two digests differ.
 ```
 
-## Signals used
+## Legacy signals
 
 | Family | Normalized value | Weight | Limitation |
 |---|---|---:|---|
@@ -121,9 +138,9 @@ match(current, [{ id: 'candidate-123', snapshot: previous }]).candidateId
 
 Missing or blocked data is `null` and earns no points, even when missing on both sides. The full user agent string is not collected: it is read only to derive the platform family, without retaining versions or model information. Families are operational groupings, **not statistically independent evidence**.
 
-Screen, resolution, viewport, zoom, touch, GPU, WebGL, canvas, audio, fonts, IP, battery, and browser and operating system versions are excluded. This removes direct dependence on those measurements; it does not prove that hardware changes cannot indirectly alter other system signals.
+The legacy collector excludes screen, resolution, viewport, zoom, touch, GPU, WebGL, canvas, audio, fonts, IP, battery, and browser and operating system versions. Detailed mode additionally probes GPU, font availability and canvas; see the detailed-mode contract above.
 
-## Matching with family omission
+## Legacy matching with family omission
 
 The `envelope/v1` policy requires:
 

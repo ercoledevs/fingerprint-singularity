@@ -1,6 +1,6 @@
 {
   "name": "fingerprint-singularity",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Display-independent observations and conservative, explainable candidate matching. No universal device identity guarantee.",
   "type": "module",
   "main": "./dist/index.js",
@@ -36,7 +36,13 @@
     "node": ">=20"
   },
   "license": "MIT",
-  "keywords": ["fingerprint", "browser", "identification", "typescript", "self-hosted"],
+  "keywords": [
+    "fingerprint",
+    "browser",
+    "identification",
+    "typescript",
+    "self-hosted"
+  ],
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
@@ -51,7 +57,8 @@
     "demo": "npm run build && node scripts/serve.mjs",
     "prepack": "npm run build",
     "test:package": "npm run build && node scripts/package-check.mjs",
-    "build:console": "npm run build && npm run build --prefix web && node scripts/build-sdk.mjs"
+    "build:console": "npm run build && npm run build --prefix web && node scripts/build-sdk.mjs",
+    "test:detailed-browser": "npm run build && node scripts/detailed-browser-check.mjs"
   },
   "devDependencies": {
     "playwright": "1.58.2",

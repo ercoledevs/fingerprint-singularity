@@ -106,7 +106,7 @@ async def lifespan(app):
     app.state.store.close()
 
 
-app = FastAPI(title="Singularity API", version="0.2.0", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="Singularity API", version="0.3.0", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
 
 @app.exception_handler(PyMongoError)
@@ -193,7 +193,7 @@ def visible_event(e):
 def health(request: Request):
     store, _ = context(request)
     store.db.command("ping")
-    return {"status": "ready", "version": "0.2.0"}
+    return {"status": "ready", "version": "0.3.0"}
 
 
 @app.get("/api/config")
@@ -248,14 +248,18 @@ def identify(key: str, data: Identification, request: Request):
             raise HTTPException(429, "Daily project quota reached")
         visitor = token = None
         anchor = False
-        decision = {"policy": kernel.POLICY, "status": "abstain", "candidateCount": 0, "omissions": []}
-        method, reason = "unassigned", "insufficient-observation"
+        decision = {"policy": kernel.policy(s), "status": "abstain", "candidateCount": 0, "omissions": []}
+        method, reason = "unassigned", "insufficient-detail" if s['schema'] == 'singularity/v2' else "insufficient-observation"
         expires = t + timedelta(days=p["retentionDays"])
         if data.token:
             visitor, method, reason = bound["visitorId"], "remembered", "possession-token"
             expires = min(expires, bound["expiresAt"])
         elif kernel.sufficient(s):
-            candidates = list(store.events.find({"project": p["_id"], "anchor": True, "expiresAt": {"$gt": t}},
+            candidate_filter = {"project": p["_id"], "snapshot.schema": s['schema'], "anchor": True, "expiresAt": {"$gt": t}}
+            if s['schema'] == 'singularity/v2':
+                # A known different platform is a permanent veto in support/v2.
+                candidate_filter['snapshot.signals.platform'] = s['signals']['platform']
+            candidates = list(store.events.find(candidate_filter,
                                                {"visitorId": 1, "snapshot": 1, "expiresAt": 1}).limit(257).max_time_ms(1500))
             decision["candidateCount"] = len(candidates)
             if data.remember:

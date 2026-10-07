@@ -37,8 +37,8 @@ def query(project, params, secret):
         v = filters["prefix"]
         if not 4 <= len(v) <= 68 or not re.fullmatch(r"[A-Za-z0-9_]+", v):
             raise ValueError("ID prefix must contain 4–68 letters, digits or underscores")
-        if not v.startswith(("evt_", "vis_", "sg1_")):
-            raise ValueError("ID prefix must start evt_, vis_ or sg1_")
+        if not v.startswith(("evt_", "vis_", "sg1_", "sg2_")):
+            raise ValueError("ID prefix must start evt_, vis_, sg1_ or sg2_")
         field = "_id" if v.startswith("evt_") else "visitorId" if v.startswith("vis_") else "digest"
         if field in q:
             raise ValueError("Do not combine exact and prefix search for the same ID")

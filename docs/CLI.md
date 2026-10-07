@@ -46,7 +46,7 @@ singularity events --project demo --prefix evt_a83f --reason stable-candidate
 | Argument | Behavior |
 |---|---|
 | `--event`, `--visitor`, `--digest` | Exact ID match |
-| `--prefix` | Prefix of an `evt_`, `vis_` or `sg1_` ID, 4–68 characters |
+| `--prefix` | Prefix of an `evt_`, `vis_`, `sg1_` or `sg2_` ID, 4–68 characters |
 | `--method` | `provisional`, `inferred`, `enrolled`, `remembered`, `unassigned` |
 | `--reason` | Exact decision reason, such as `ambiguous-candidates` |
 | `--platform` | `macos`, `windows`, `linux`, `ios`, `android`, `chromeos` |

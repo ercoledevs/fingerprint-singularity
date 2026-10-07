@@ -1,5 +1,29 @@
 # Architecture
 
+The library exposes two versioned pipelines. The network agent defaults to detailed observations; legacy exports keep their original wire format and behavior.
+
+```mermaid
+flowchart LR
+  APIs[Browser APIs] --> Isolation[Temporary blank document]
+  Isolation --> Probes[GPU / fonts / canvas, twice]
+  Probes --> Stable[Stable bounded values or null]
+  Stable --> Hash[Scope-separated detail hashes]
+  Hash --> V2[singularity/v2 snapshot]
+  V2 --> Strict[support/v2: two agreements / zero conflicts]
+  Pool[Complete compatible candidate pool] --> Strict
+  Strict --> Decision[matched / unmatched / abstain]
+```
+
+`src/detailed.ts` isolates built-in rendering probes from host styles and web fonts. A synchronous probe pair must agree; failures remain null. The frame is removed before Web Crypto hashing. Platform and resource normalization are reused from `collect.ts`; canvas dimensions are fixed and unrelated to the display. These observations may still change with browser rendering, fonts, privacy settings and graphics drivers.
+
+`src/detailed-schema.ts` enforces exact keys, `web/v1` probe revision, nullable 64-character lowercase detail hashes and a 4,096-code-unit JSON limit. `src/detailed-match.ts` requires matching known platform/core buckets, two equal details and no comparable conflicts. Incomplete compatible rivals block a winner. Selection is O(C), with C ≤256, and never uses input order to break ties. See [the detailed contract](DETAILED.md).
+
+The Python kernel dispatches on schema and has deterministic parity tests against TypeScript. The backend partitions anchors by schema and, for v2, platform. It reads the entire compatible pool up to the overflow boundary and never chooses from a silently truncated list. Inferred anchors stay immutable; authenticated possession of a valid scoped enrollment token can retain continuity across schema upgrades.
+
+A global lock preserves the atomic candidate-read/assignment/write operation. Admission is capped at 32 requests, with a two-second lock-acquisition budget. This absorbs short concurrent bursts while retaining bounded backpressure. The supported topology is still one API worker with MongoDB and a separate recovery ledger.
+
+## Legacy pipeline
+
 ```mermaid
 flowchart LR
   Browser[Browser APIs] --> Collect[collect / normalization]

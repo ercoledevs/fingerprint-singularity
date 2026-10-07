@@ -21,18 +21,25 @@ try {
   execFileSync('npm', ['install', '--ignore-scripts', '--offline', '--no-audit', '--no-fund', '--package-lock=false', join(temp, pack.filename)], {cwd: consumer, env, stdio: 'pipe'});
   execFileSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
-    import {collect, digest, match} from 'fingerprint-singularity';
+    import {collect, digest, match, collectDetailed, digestDetailed, matchDetailed} from 'fingerprint-singularity';
     import {createAgent} from 'fingerprint-singularity/client';
     const snapshot = collect({scope:'package-test', environment:{platform:'MacIntel', hardwareConcurrency:8, deviceMemory:8, language:'en-US', timezone:'UTC'}});
     assert.match(await digest(snapshot), /^sg1_[a-f0-9]{64}$/);
     assert.equal(match(snapshot, [{id:'candidate',snapshot}]).candidateId, 'candidate');
+    const detailed = await collectDetailed({scope:'package-test',environment:{platform:'MacIntel',hardwareConcurrency:8},probes:{gpu:()=>'gpu',fonts:()=>'fonts'}});
+    assert.match(await digestDetailed(detailed), /^sg2_[a-f0-9]{64}$/);
+    assert.equal(matchDetailed(detailed,[{id:'detailed',snapshot:detailed}]).candidateId,'detailed');
     assert.equal(typeof createAgent({publicKey:'pk_'+'a'.repeat(32),endpoint:'https://identity.example.com'}).identify, 'function');
   `], {cwd: consumer, env, stdio: 'pipe'});
   await writeFile(join(consumer, 'consumer.ts'), `
-    import {collect, digest, match, type Candidate} from 'fingerprint-singularity';
+    import {collect, digest, match, type Candidate, type DetailedCandidate, collectDetailed, digestDetailed, matchDetailed} from 'fingerprint-singularity';
     import {createAgent} from 'fingerprint-singularity/client';
     const s = collect({scope:'app'});
     const c: Candidate[] = [{id:'candidate',snapshot:s}];
+    const d = await collectDetailed({scope:'app'});
+    const candidates: DetailedCandidate[] = [{id:'detailed',snapshot:d}];
+    void digestDetailed(d); void matchDetailed(d,candidates);
+    void createAgent({publicKey:'pk_'+'a'.repeat(32),mode:'legacy'});
     void digest(s); void match(s,c); void createAgent({publicKey:'pk_'+'a'.repeat(32)});
   `);
   execFileSync(process.execPath, [join(root, 'node_modules/typescript/bin/tsc'), '--strict', '--noEmit', '--module', 'NodeNext', '--target', 'ES2022', 'consumer.ts'], {cwd: consumer, env, stdio: 'pipe'});

@@ -9,7 +9,7 @@ export interface IdentificationResult {
   decision: { policy: string; status: string; candidateCount: number; omissions: unknown[] };
   token?: string;
 }
-export declare function createAgent(options: {publicKey: string; endpoint?: string}): {
+export declare function createAgent(options: {publicKey: string; endpoint?: string; mode?: 'detailed' | 'legacy'}): {
   identify(options?: {remember?: boolean; requestId?: string}): Promise<IdentificationResult>;
   forget(): void;
 };

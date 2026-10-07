@@ -16,7 +16,7 @@ The platform adds server-side decisions, retained events, project configuration,
 
 Methods are `provisional` (a new inferred candidate), `inferred` (a qualifying existing candidate), `enrolled` (fresh explicit browser enrollment), `remembered` (valid possession token), and `unassigned`.
 
-Inferred assignments use the `envelope/v1` policy and its signal-family omission checks. Agreement scores are heuristic values, not identity probabilities. Browser enrollment establishes token possession; it does not authenticate a person. Keep authentication and authorization separate from visitor IDs.
+Inferred assignments use `support/v2` for detailed observations or the unchanged `envelope/v1` policy for legacy observations. Agreement scores describe evidence, not identity probabilities. Browser enrollment establishes token possession; it does not authenticate a person. Keep authentication and authorization separate from visitor IDs. See [detailed observations and upgrading](DETAILED.md).
 
 ## Browser integration
 
@@ -63,7 +63,7 @@ Use the same `requestId` when retrying the **same input** after a connection fai
 
 The scope must equal the project public key. Unknown properties and invalid bucket values are rejected. Include the allowed `Origin` header when calling from your own server. A public key and origin allowlist are integration controls, not authentication for an arbitrary HTTP caller. Browser-supplied observations can be fabricated.
 
-The response always contains an event ID for an accepted request. Sparse observations, ambiguous candidates and candidate overflow can leave `visitorId` unassigned. The five observation fields remain coarse platform, core bucket, memory bucket, base language and timezone. Screen data, browser versions, raw IP addresses, URLs and page content are not recorded.
+The response always contains an event ID for an accepted request. Sparse observations, ambiguous candidates and candidate overflow can leave `visitorId` unassigned. Both schemas retain coarse platform, core bucket, memory bucket, base language and timezone. Detailed snapshots add `probe: "web/v1"` and `detail: {gpu, fonts, canvas}`, each a nullable scope-specific SHA-256 hash. Screen dimensions, browser version strings, raw IP addresses, URLs and page content are not recorded. Rendering details may change when browsers or drivers are updated. The JSON request above shows the legacy format; the new agent supplies detailed snapshots by default.
 
 ## Administration
 
@@ -87,9 +87,9 @@ One MongoDB document atomically stores an event, its decision, idempotency recor
 
 This release is designed for a small self-hosted instance:
 
-- One API worker, enforced with a lock on its shared state volume. Writes use a non-waiting global lock and return `429` under contention.
+- One API worker, enforced with a lock on its shared state volume. Writes wait at most two seconds for the global atomic write lock, then return `429` under prolonged contention. Admission remains bounded at 32 requests.
 - At most 32 projects, 120 identification requests/minute/project and 10,000 accepted events/day/project.
-- At most 256 complete active candidates for inference. A 257th candidate causes abstention rather than a truncated comparison. Explicit enrollment is capped at 512 active candidates.
+- At most 256 complete active compatible candidates for inference, partitioned by schema and additionally by platform for v2. A 257th compatible candidate causes abstention rather than a truncated comparison. Explicit enrollment is capped at 512 active candidates across schemas.
 - An 8 KiB body cap, 10-second total body deadline, 32 active requests, bounded Mongo connection pool and query deadlines.
 - Retention of 1–90 days, default 30. Query-time expiry applies immediately; Mongo TTL cleans up expired documents asynchronously. Increasing retention never restores expired data.
 

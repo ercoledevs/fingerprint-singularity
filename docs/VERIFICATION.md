@@ -1,3 +1,60 @@
+# Version 0.3.0 verification
+
+Local checks on **7 October 2026**, macOS arm64, Node.js 24.21.0, Python 3.12 and MongoDB 8.0.16:
+
+| Check | Result | Scope |
+|---|---|---|
+| Core and client | PASS | 38 Node tests, consumer types, offline packed-package runtime/type checks |
+| Backend and CLI | PASS | 50 Python tests with real isolated MongoDB databases |
+| Version parity | PASS | 2,107 detailed TypeScript/Python cases, in addition to legacy parity/golden checks |
+| Detailed real-browser probes | PASS locally | 400 repeated collections across Chromium 145 and WebKit 26, four ephemeral contexts per engine, viewport/DPR/reload changes |
+| Font isolation | PASS | Host remote/local font overrides cannot alter probe results or initiate font downloads; blocked isolation returns null; temporary frames are removed |
+| Cross-browser continuity | NOT PRESERVED in this sample | Chromium and WebKit on the same host had different canvas hashes; strict detailed matching rejected the association |
+| Backend population replay | PASS | 2,304 identification requests, 24 isolated projects, synthetic observations through actual FastAPI/MongoDB; metrics equal the pure simulator |
+| Legacy contention replay | PASS | 96/96 unique concurrent requests and 64/64 idempotent retries accepted; one visitor/one replay event as appropriate |
+| Real-device population accuracy | UNKNOWN | No independently labeled multi-device longitudinal cohort or commercial reference outputs |
+
+Local Firefox cannot start reliably on this macOS host. The CI workflow is configured to run all three engines on Linux, including the new detailed probe checks and full Compose/UI acceptance. A local two-engine result must not be described as a three-engine result.
+
+## Paired synthetic evaluation
+
+Run `python scripts/evaluate-detailed.py --out artifacts/improvement-v03` after installing the Python package. The deterministic suite evaluates **82,944 simulated policy-visits**: 3 seeds × 3 arrival orders × 3 populations × 6 scenarios × 4 policies × 64 devices × 2 visits. These repeated evaluations are not independent real devices. Features come from finite, shared GPU/font groups and coarser correlated rendering groups; device labels never enter fingerprints. Complete cloned profiles and missing-first-visit observations are deliberate counterexamples.
+
+**Exclusive two-visit continuity** means both visits receive the same non-null ID and no other labeled simulated device receives it. **Link precision** means true same-device links divided by all assigned same-ID links; undefined denominators remain null. Coverage and false-link counts must be considered alongside either rate.
+
+For unchanged observations, ranges across the nine seed/order combinations are:
+
+| Synthetic population | Policy | Exclusive continuity | Link precision | Assigned visits |
+|---|---|---:|---:|---:|
+| Diverse profiles | Legacy v1 | 9.38–23.44% | 41.46–100% | 26.56–35.94% |
+| Diverse profiles | Detailed v2 | 96.88–100% | 94.12–100% | 100% |
+| Shared office profiles | Legacy v1 | 0% | 0% where defined | 1.56–3.91% |
+| Shared office profiles | Detailed v2 | 26.56–32.81% | 23.88–32% | 100% |
+| Identical profiles | Either | 0% | 0.79% | 100% |
+
+The detailed policy is not uniformly better. In the office fixture it assigns more visits but makes **136–204 false pair links**, versus **0–6** for largely abstaining v1. When the synthetic canvas changes on every second visit, detailed exclusive continuity is **0%**. Sparse-first enrollment reduces separation because an anchor cannot compare a field it never observed. Complete clones remain inseparable from these inputs.
+
+Exact-coarse equality reaches 70.31–84.38% unchanged diverse continuity; exact-detailed equality reaches the same unchanged-observation results as v2. The custom two-detail matching rule adds no measured gain in that scenario. Its additional benefit here appears when GPU evidence disappears; exact equality splits those visits. Neither experiment establishes accuracy in the wild.
+
+The unchanged legacy API contention replay went from **4/96 accepted requests in 0.2 to 96/96 in 0.3**, using 32 client workers. This measures in-process TestClient handling with local MongoDB, not production network throughput. Processing accepted requests also takes longer than rejecting them immediately; the result is not a latency-reduction claim. Quotas and evidence floors were retained.
+
+## Reproduce
+
+```sh
+npm ci --ignore-scripts
+npm run check
+npm run test:package
+npm run build:console
+npm run test:detailed-browser
+python -m pip install './server[server,test]'
+TEST_MONGO_URI=mongodb://127.0.0.1:27018 python -m pytest server/tests -q
+python scripts/evaluate-detailed.py --out artifacts/improvement-v03
+```
+
+Artifacts include `paired-results.json`, `paired-observations.jsonl`, `paired-api.json` and `browsers.json`. Isolated database fixtures remove their test databases after completion. Missing MongoDB skips database checks rather than proving them. CI deploys a disposable Compose stack for the full browser/CLI/recovery checks.
+
+---
+
 # Version 0.2.0 platform verification
 
 Verified on **7 October 2026**. [GitHub Actions run 37605714288](https://github.com/ercoledevs/fingerprint-singularity/actions/runs/37605714288) passed both jobs on commit `2938a59d1ca52fe26cf8591ff99908904394706d`.
@@ -33,7 +90,7 @@ Database tests create isolated test databases. Without `TEST_MONGO_URI`, databas
 
 ## Bounded synthetic workload
 
-On the local macOS arm64 test host, 15 serial API samples per candidate population produced maximum observed durations of approximately 2.18 ms (1 candidate), 1.74 ms (8), 2.69 ms (64), 13.09 ms (256) and 2.41 ms (257, overflow). These are in-process API measurements with local MongoDB, not network or production latency. The deterministic synthetic populations at 64/256 candidates abstained; the workload is not a coverage or accuracy study. Admission is capped at 32 requests and writes use a nonwaiting lock.
+On the local macOS arm64 test host, 15 serial API samples per candidate population produced maximum observed durations of approximately 2.18 ms (1 candidate), 1.74 ms (8), 2.69 ms (64), 13.09 ms (256) and 2.41 ms (257, overflow). These are in-process API measurements with local MongoDB, not network or production latency. The deterministic synthetic populations at 64/256 candidates abstained; the workload is not a coverage or accuracy study. In version 0.2, admission was capped at 32 requests and writes used a nonwaiting lock.
 
 ---
 

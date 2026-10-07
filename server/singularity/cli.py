@@ -98,7 +98,7 @@ def parser():
     events.add_argument("--project", required=True)
     for name, help_text in [
         ("event", "Exact event ID"), ("visitor", "Exact visitor ID"), ("digest", "Exact observation digest"),
-        ("prefix", "ID prefix: evt_, vis_ or sg1_ followed by characters"), ("method", "provisional/inferred/enrolled/remembered/unassigned"),
+        ("prefix", "ID prefix: evt_, vis_, sg1_ or sg2_ followed by characters"), ("method", "provisional/inferred/enrolled/remembered/unassigned"),
         ("reason", "Exact decision reason"), ("platform", "macos/windows/linux/ios/android/chromeos"),
         ("after", "Inclusive ISO timestamp, e.g. 2026-10-01T00:00:00Z"), ("before", "Exclusive ISO timestamp"),
         ("cursor", "Next cursor from a previous page; keep filters unchanged")]:

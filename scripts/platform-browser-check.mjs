@@ -24,16 +24,17 @@ for (const [name, engine] of Object.entries({chromium, firefox, webkit})) {
   }
   await page.goto(base);
   const initial = await identify('Identify this browser');
-  if (initial.method === 'unassigned' && initial.reason === 'insufficient-observation') {
-    await page.getByText('insufficient-observation', {exact: true}).waitFor();
+  if (initial.method === 'unassigned' && ['insufficient-observation','insufficient-detail'].includes(initial.reason)) {
+    await page.getByText(initial.reason, {exact: true}).waitFor();
     await page.screenshot({path: `artifacts/platform/${name}-sparse-observation.png`, fullPage: true});
-    console.log(`PASS ${name}: unavailable default-locale evidence remains unassigned`);
+    console.log(`PASS ${name}: unavailable detailed/default-locale evidence remains unassigned`);
     await page.close();
-    // A configured locale provides a reproducible positive enrollment fixture.
-    // Keep the sparse default-context result above; do not weaken evidence floors.
+    // Exercise the explicitly selectable legacy path when the CI renderer cannot
+    // provide enough detail. The detailed-mode abstention above remains tested.
     page = await browser.newPage({viewport: {width: 1365, height: 1000}, locale: 'en-US'});
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(base);
+    await page.getByLabel('Collection mode', {exact: true}).selectOption('legacy');
     await identify('Identify this browser');
   }
   await page.getByRole('button', {name: 'Identify again', exact: true}).waitFor();

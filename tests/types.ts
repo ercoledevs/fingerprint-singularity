@@ -10,3 +10,8 @@ const invalid: Snapshot = { schema: 'v2', scope: 'x', signals: s.signals };
 // @ts-expect-error Snapshots expose immutable fields.
 s.scope = 'other';
 void invalid;
+import {collectDetailed, matchDetailed, digestDetailed, type DetailedSnapshot, type DetailedMatchResult} from '../dist/index.js';
+const detailed: Promise<DetailedSnapshot> = collectDetailed({scope: 'example.test'});
+const detailedResult: Promise<DetailedMatchResult> = detailed.then(s => matchDetailed(s, []));
+const detailedCode: Promise<string> = detailed.then(digestDetailed);
+void detailedResult; void detailedCode;

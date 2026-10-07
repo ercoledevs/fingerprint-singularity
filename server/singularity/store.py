@@ -40,6 +40,7 @@ class Store:
         self.sessions = self.db.sessions
         self.events.create_index([("project", ASCENDING), ("requestKey", ASCENDING)], unique=True)
         self.events.create_index([("project", 1), ("anchor", 1), ("expiresAt", 1)])
+        self.events.create_index([("project", 1), ("snapshot.schema", 1), ("snapshot.signals.platform", 1), ("anchor", 1), ("expiresAt", 1)])
         self.events.create_index([("project", 1), ("createdAt", -1), ("_id", -1)])
         self.events.create_index([("project", 1), ("_id", 1)])
         for field in ["visitorId", "digest", "method", "reason", "snapshot.signals.platform"]:
@@ -66,13 +67,15 @@ class Store:
 
     @contextmanager
     def serial(self):
-        # No unbounded per-project lock map or queue. Contending writes receive backpressure.
-        if not self.mutex.acquire(blocking=False):
+        # The HTTP admission ceiling bounds waiters. Preserve the atomic global section;
+        # absorb short bursts, then return backpressure after a bounded wait.
+        if not self.mutex.acquire(timeout=2.0):
             from fastapi import HTTPException
             raise HTTPException(429, "Server is processing another write; retry shortly", headers={"Retry-After": "1"})
         try:
             if not self.ready:
-                raise RuntimeError("Recovery required")
+                from fastapi import HTTPException
+                raise HTTPException(503, "Recovery required; restart the API", headers={"Retry-After": "2"})
             yield
         finally:
             self.mutex.release()

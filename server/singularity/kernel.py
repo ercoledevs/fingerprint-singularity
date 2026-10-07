@@ -27,7 +27,7 @@ def identifier(value, scope=False):
     return value
 
 
-def validate(value):
+def validate_v1(value):
     record(value, ["schema", "scope", "signals"])
     if value["schema"] != "singularity/v1":
         raise Invalid("INCOMPATIBLE_SCHEMA")
@@ -46,15 +46,15 @@ def validate(value):
     return {"schema": value["schema"], "scope": value["scope"], "signals": dict(s)}
 
 
-def canonicalize(snapshot):
-    s = validate(snapshot)
+def canonicalize_v1(snapshot):
+    s = validate_v1(snapshot)
     values = [s["schema"], s["scope"]] + [s["signals"][f[0]] for f in FIELDS]
     values = [int(x) if type(x) is float and x.is_integer() else x for x in values]
     return json.dumps(values, separators=(",", ":"), ensure_ascii=False)
 
 
-def digest(snapshot):
-    return "sg1_" + hashlib.sha256(canonicalize(snapshot).encode()).hexdigest()
+def digest_v1(snapshot):
+    return "sg1_" + hashlib.sha256(canonicalize_v1(snapshot).encode()).hexdigest()
 
 
 def evaluate(a, b, omitted=None):
@@ -81,16 +81,16 @@ def evaluate(a, b, omitted=None):
                 and coverage >= .75 and len(seen) >= (2 if omitted else 3))
 
 
-def sufficient(snapshot):
+def sufficient_v1(snapshot):
     return all(evaluate(snapshot, snapshot, f)["qualifies"] for f in [None, *FAMILIES])
 
 
-def match(snapshot, candidates):
+def match_v1(snapshot, candidates):
     if type(candidates) is not list:
         raise Invalid()
     if len(candidates) > 256:
         raise Invalid("LIMIT_EXCEEDED")
-    observation = validate(snapshot)
+    observation = validate_v1(snapshot)
     ids = set()
     for c in candidates:
         record(c, ["id", "snapshot"])
@@ -98,7 +98,7 @@ def match(snapshot, candidates):
         if c["id"] in ids:
             raise Invalid("DUPLICATE_ID")
         ids.add(c["id"])
-        validate(c["snapshot"])
+        validate_v1(c["snapshot"])
         if observation["scope"] != c["snapshot"]["scope"]:
             raise Invalid("SCOPE_MISMATCH")
     def assess(omit=None):
@@ -115,7 +115,7 @@ def match(snapshot, candidates):
         return r is None or w["similarity"] - r["similarity"] >= .15
     if not candidates:
         return result("unmatched", "no-candidates")
-    if not sufficient(observation):
+    if not sufficient_v1(observation):
         return result("abstain", "insufficient-observation")
     winner = best([c for c in ranking if c["qualifies"]])
     if winner is None:
@@ -134,3 +134,40 @@ def match(snapshot, candidates):
     if any(not o["passes"] for o in omissions):
         return result("abstain", "unstable-under-omission", omissions=omissions)
     return result("matched", "stable-candidate", winner["id"], omissions)
+
+
+def implementation(snapshot):
+    if type(snapshot) is dict and snapshot.get('schema') == 'singularity/v2':
+        from . import detailed_kernel
+        return detailed_kernel
+    return None
+
+
+def policy(snapshot):
+    module = implementation(snapshot)
+    return module.POLICY if module else POLICY
+
+
+def validate(value):
+    module = implementation(value)
+    return module.validate(value) if module else validate_v1(value)
+
+
+def canonicalize(snapshot):
+    module = implementation(snapshot)
+    return module.canonicalize(snapshot) if module else canonicalize_v1(snapshot)
+
+
+def digest(snapshot):
+    module = implementation(snapshot)
+    return module.digest(snapshot) if module else digest_v1(snapshot)
+
+
+def sufficient(snapshot):
+    module = implementation(snapshot)
+    return module.sufficient(snapshot) if module else sufficient_v1(snapshot)
+
+
+def match(snapshot, candidates):
+    module = implementation(snapshot)
+    return module.match(snapshot, candidates) if module else match_v1(snapshot, candidates)

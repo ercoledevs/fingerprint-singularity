@@ -293,7 +293,7 @@ def test_synthetic_population_measurements(client):
     output = dict(workload='Deterministic synthetic observations; serial TestClient HTTP handling with actual MongoDB. Not field accuracy or network latency.',
                   mongo=client.store.db.command('buildInfo')['version'], python=sys.version.split()[0],
                   processPeakRssMiB=round(rss/(1024*1024 if sys.platform=='darwin' else 1024),2),
-                  writeQueueCapacity=0, admissionLimit=32, scenarios=results)
+                  lockWaitSeconds=2, admissionLimit=32, scenarios=results)
     path = Path('artifacts/platform'); path.mkdir(parents=True, exist_ok=True)
     (path/'performance.json').write_text(json.dumps(output,indent=2))
 
