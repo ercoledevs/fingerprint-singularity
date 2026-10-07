@@ -1,8 +1,7 @@
 # Fingerprint Singularity
 
-![Singularity — Fingerprint Identification](docs/assets/banner.png)
+![Singularity — Identification Platform](docs/assets/banner.svg)
 
-<p align="center"><img src="docs/assets/logo.png" width="64" height="64" alt="Singularity logo"></p>
 
 **Browser observations, explainable identification, and a console you can host yourself.**
 

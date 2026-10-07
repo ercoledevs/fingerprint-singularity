@@ -34,7 +34,7 @@ jobs:
       - run: docker compose -f compose.yaml -f .github/compose.test.yaml --profile web up --build -d --wait
       - run: python scripts/ci-report.py
       - run: npx playwright install --with-deps chromium firefox webkit
-      - run: node scripts/platform-browser-check.mjs
+      - run: python scripts/ci-report.py node scripts/platform-browser-check.mjs
       - name: Headless profile
         run: |
           docker compose --profile web stop web

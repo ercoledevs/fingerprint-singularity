@@ -4,7 +4,8 @@ from pathlib import Path
 import subprocess
 import sys
 
-result = subprocess.run([sys.executable, 'scripts/verify-platform.py'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+command = sys.argv[1:] or [sys.executable, 'scripts/verify-platform.py']
+result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 output = result.stdout
 for name in ('.env', '.admin-password'):
     path = Path(name)
@@ -14,7 +15,7 @@ for name in ('.env', '.admin-password'):
             if len(value) >= 16:
                 output = output.replace(value, '[redacted]')
 path = Path('artifacts/platform'); path.mkdir(parents=True, exist_ok=True)
-(path / 'acceptance.log').write_text(output)
+(path / ('browser-acceptance.log' if command[0] == 'node' else 'acceptance.log')).write_text(output)
 print(output)
 if result.returncode:
     tail = '\n'.join(output.splitlines()[-50:])[-7000:]
