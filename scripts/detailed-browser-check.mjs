@@ -54,7 +54,9 @@ try {
           document.head.append(style);
           const remote = await api.collectDetailed({scope: 'detailed-browser-check'});
           style.textContent = '@font-face{font-family:Arial;src:local("Courier New")}';
-          await document.fonts.load('17px Arial');
+          // The alias target may be absent on Linux; a rejected local-font load
+          // is part of this fixture, not a collector failure.
+          await document.fonts.load('17px Arial').catch(() => []);
           const local = await api.collectDetailed({scope: 'detailed-browser-check'});
           style.remove();
           const create = document.createElement;
@@ -77,7 +79,12 @@ try {
         await context.close();
       }
       assert.deepEqual(requests, [], `${name}: unexpected network request`);
-      assert.equal(new Set(observations.map(r => r.digest)).size, 1, `${name}: same-engine/context/viewport/DPR stability`);
+      const variants = {};
+      for (const family of ['signals', 'detail']) for (const key of Object.keys(observations[0].snapshot[family])) {
+        const count = new Set(observations.map(r => r.snapshot[family][key])).size;
+        if (count > 1) variants[`${family}.${key}`] = count;
+      }
+      assert.equal(new Set(observations.map(r => r.digest)).size, 1, `${name}: same-engine/context/viewport/DPR stability; varying fields ${JSON.stringify(variants)}`);
       elapsed.sort((a,b) => a-b);
       snapshots.push({name, snapshot: observations[0].snapshot});
       report.browsers.push({name, version: browser.version(), status: 'PASS', collections: observations.length,
