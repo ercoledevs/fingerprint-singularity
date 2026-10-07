@@ -17,6 +17,7 @@ jobs:
       - run: npm run test:browser
       - run: npm run bench
       - run: npm pack --dry-run
+      - run: npm run test:package
   platform:
     runs-on: ubuntu-latest
     timeout-minutes: 25

@@ -1,4 +1,43 @@
-# Version 0.1.0 verification
+# Version 0.2.0 platform verification
+
+Verified on **7 October 2026**. [GitHub Actions run 37605714288](https://github.com/ercoledevs/fingerprint-singularity/actions/runs/37605714288) passed both jobs on commit `2938a59d1ca52fe26cf8591ff99908904394706d`.
+
+| Check | Result | Evidence |
+|---|---|---|
+| Core library | PASS | 29 Node tests, consumer types, Chromium/Firefox/WebKit, performance budget and package dry run |
+| Python backend and CLI | PASS | 42 tests against real MongoDB, including TypeScript/Python kernel parity |
+| Distributed deployment | PASS | Actual Docker Compose build and startup with MongoDB 8.0.16; full web and headless profiles |
+| Recovery | PASS | API/Mongo restart, offline backup/restore, retained event equality, independent deletion replay and credential rotation |
+| Deployed CLI | PASS | Installed command: login, scoped combined filters, pagination-related API checks, event detail, Rich/JSON output and logout |
+| Deployed browser workflows | PASS | Chromium, Firefox and WebKit: identification, fresh enrollment and token continuity, login, search/errors, project creation, delivered SDK, mobile layout and keyboard interaction |
+| Sparse browser observations | PASS | Firefox's default CI environment lacked a valid language observation and memory; the UI displayed an unassigned event. A separately configured locale exercised the positive enrollment path without weakening evidence floors. |
+| Offline evaluator | PASS | Pair-count regression oracle, cohort/null/reference semantics, strict input validation, independent randomized oracle and real size limits |
+| Packed npm consumer | PASS locally | Offline installation into an empty project, package-name imports for core/client, execution and consumer TypeScript compilation |
+| Physical-device and longitudinal accuracy | UNKNOWN | No independently labeled real-device cohort or longitudinal comparison was collected |
+
+The browser artifact on that CI run contains desktop/mobile screenshots and redacted acceptance logs. The checks establish implementation behavior, not population identification accuracy.
+
+## Reproduce the platform checks
+
+Use a disposable local MongoDB instance and Python 3.12+:
+
+```sh
+python -m pip install './server[server,test]'
+TEST_MONGO_URI=mongodb://127.0.0.1:27018 python -m pytest server/tests -q
+npm run test:package
+npm run build:console
+singularity evaluate examples/evaluation.synthetic.jsonl
+```
+
+Database tests create isolated test databases. Without `TEST_MONGO_URI`, database-dependent tests are skipped; a skipped test is not a PASS. Full deployment, destructive recovery fixtures and three-engine UI acceptance run in the disposable GitHub Actions stack.
+
+## Bounded synthetic workload
+
+On the local macOS arm64 test host, 15 serial API samples per candidate population produced maximum observed durations of approximately 2.18 ms (1 candidate), 1.74 ms (8), 2.69 ms (64), 13.09 ms (256) and 2.41 ms (257, overflow). These are in-process API measurements with local MongoDB, not network or production latency. The deterministic synthetic populations at 64/256 candidates abstained; the workload is not a coverage or accuracy study. Admission is capped at 32 requests and writes use a nonwaiting lock.
+
+---
+
+# Historical core 0.1.0 verification
 
 Local run on **October 7, 2026**, macOS arm64, Node.js 24.21.0. The result concerns the experimental library's contract; it does not demonstrate physical identification or accuracy across a population.
 

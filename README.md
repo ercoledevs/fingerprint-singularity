@@ -1,13 +1,20 @@
 # Fingerprint Singularity
 
-![Singularity — Identification Platform](docs/assets/banner.svg)
-
+![Singularity — Identification Platform](https://raw.githubusercontent.com/ercoledevs/fingerprint-singularity/main/docs/assets/banner.svg)
 
 **Browser observations, explainable identification, and a console you can host yourself.**
 
 Fingerprint Singularity includes a TypeScript library, a Python API backed by MongoDB, a Vue backoffice, and a standalone terminal client. Collect display-independent observations, explore event and visitor IDs, and inspect the evidence behind each assignment.
 
 The core library has no runtime dependencies, network calls, cookies, storage, or permission requests. The optional platform manages events, candidate storage, retention and explicit browser enrollment.
+
+## Install the library
+
+```sh
+npm install fingerprint-singularity
+```
+
+Import the core API from `fingerprint-singularity` and the optional self-hosted API adapter from `fingerprint-singularity/client`. TypeScript declarations are included. The Python/MongoDB/Vue platform and CLI are available in this repository and are deployed separately from the npm library.
 
 ## Start the platform
 
@@ -63,7 +70,7 @@ npm run demo
 # http://127.0.0.1:4173
 ```
 
-The package is not published on npm. To use it in another project:
+To install a local development build in another project:
 
 ```sh
 npm pack
