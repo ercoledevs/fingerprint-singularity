@@ -31,6 +31,7 @@ jobs:
       - run: node scripts/intensive-browser-check.mjs
       - run: node scripts/intensive-synthetic-check.mjs
       - run: node scripts/benchmark-matching.mjs
+      - run: python scripts/write-intensive-summary.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

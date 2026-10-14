@@ -101,6 +101,7 @@ docker compose --profile headless up --build -d --wait
 | [Deployment](docs/DEPLOYMENT.md) | Docker, HTTPS, credentials, backup and recovery |
 | [CLI](docs/CLI.md) | ID searches, filters, pagination and automation |
 | [Evaluation](docs/EVALUATION.md) · [Verification](docs/VERIFICATION.md) | Labeled datasets, measured results and test scope |
+| [Intensive 0.4 comparison](docs/INTENSIVE_0_4.md) · [Rust assessment](docs/RUST_ASSESSMENT.md) | Cache, private sessions, collision rates and measured CPU costs |
 | [Architecture](docs/ARCHITECTURE.md) · [Research](docs/RESEARCH.md) | Design decisions and signal provenance |
 | [Fingerprint research](docs/FINGERPRINT_RESEARCH.md) | SDK analysis, observable behavior and adopted patterns |
 | [Legacy API](docs/LEGACY.md) | Original collector, contracts and family-omission policy |

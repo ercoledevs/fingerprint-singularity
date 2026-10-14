@@ -1,5 +1,7 @@
 # Version 0.4.0 verification
 
+For the later intensive comparison against the exact public packages, including observed coverage regressions, see [the intensive report](INTENSIVE_0_4.md) and [Rust assessment](RUST_ASSESSMENT.md).
+
 Local checks on **14 October 2026**, macOS arm64, Node.js 24.21.0, Python 3.12 and disposable MongoDB 8.0.16:
 
 | Check | Result | Scope |
