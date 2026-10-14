@@ -1,0 +1,39 @@
+name: intensive SDK evaluation
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/intensive-evaluation.yml'
+      - 'scripts/intensive-*.mjs'
+      - 'scripts/prepare-intensive-sdks.py'
+      - 'scripts/evidence-metrics.mjs'
+      - 'scripts/benchmark-matching.mjs'
+      - 'tests/evidence-metrics.test.mjs'
+permissions:
+  contents: read
+jobs:
+  intensive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts
+      - run: python scripts/prepare-intensive-sdks.py
+      - run: node --test tests/evidence-metrics.test.mjs
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - run: node scripts/intensive-browser-check.mjs
+      - run: node scripts/intensive-synthetic-check.mjs
+      - run: node scripts/benchmark-matching.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: intensive-linux-evidence
+          path: artifacts/intensive-v04
+          retention-days: 7
