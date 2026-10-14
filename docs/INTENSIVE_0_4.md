@@ -38,6 +38,20 @@ Assignment coverage is 3,750/3,750 versus 2,500/3,750. Same-host pair continuity
 
 **Interpretation:** stable observation hashes within a browser do not establish stable visitor assignment across browsers. The v3 coverage regression here must be considered before switching an existing workload from `mode: detailed` to the new default. The profile code must not be used as a universal hardware identifier.
 
+## Separate Linux sandbox results
+
+The final Linux CI run completed **3,750 paired visits / 7,500 collector calls** on its own runner. Its observations are not pooled with the Mac as one device. Together, the two reported matrices contain 7,500 completed paired visits and 15,000 collector calls. Earlier repetitions and failed partial runs are not additional independent devices.
+
+| Engine | Build | Stable digest 0.3.0 / 0.4.0 | sc1 availability | Collector p95 0.3.0 / 0.4.0 |
+| --- | --- | ---: | ---: | ---: |
+| chromium | 145.0.7632.6 | 100.00% / 100.00% | 0.00% | 26.00 / 58.10 ms |
+| firefox | 146.0.1 | 100.00% / 100.00% | 0.00% | 17.00 / 21.00 ms |
+| webkit | 26.0 | 100.00% / 100.00% | 0.00% | 38.00 / 41.00 ms |
+
+Each digest rate is 1,250/1,250 per engine and SDK. Available sc1 codes are 0/1,250 per engine, so conditional code stability is undefined. Both matcher replays assign all 3,750 visits, retain three anchors and yield 33.32% same-host pair continuity (2,341,875/7,029,375); these are separate engine identities rather than a shared cross-browser identity. The browser matrix itself passed; that does not imply 100% hardware recognition.
+
+The aggregate data was read from the public [CI report annotations](https://github.com/ercoledevs/fingerprint-singularity/actions/runs/38533581723), generated from the completed [Linux evidence run](https://github.com/ercoledevs/fingerprint-singularity/actions/runs/38532232703). The detailed artifact and step summary remain available in GitHub. `linux-public-aggregate.json` preserves the received numeric evidence. Runtime scheduling and headless GPU availability differ from the Mac, so timing or coverage results must not be presented as a language-only effect.
+
 ## Synthetic stability and uniqueness
 
 **82,944 policy-visits** across 216 cohort evaluations: three fixed seeds, three arrival orders, three finite-profile populations, eight scenarios, 64 labeled simulated devices and three visits per device, evaluated by both versions. Repeated evaluations do not create independent real devices. Labels never enter collected features. Both collectors receive the same designed font bits; this does not measure the entropy gain of the larger real font panel.
