@@ -21,7 +21,7 @@ try {
   execFileSync('npm', ['install', '--ignore-scripts', '--offline', '--no-audit', '--no-fund', '--package-lock=false', join(temp, pack.filename)], {cwd: consumer, env, stdio: 'pipe'});
   execFileSync(process.execPath, ['--input-type=module', '-e', `
     import assert from 'node:assert/strict';
-    import {collect, digest, match, collectDetailed, digestDetailed, matchDetailed} from 'fingerprint-singularity';
+    import {collect, digest, match, collectDetailed, digestDetailed, matchDetailed, collectResilient, continuityCode, matchResilient} from 'fingerprint-singularity';
     import {createAgent} from 'fingerprint-singularity/client';
     const snapshot = collect({scope:'package-test', environment:{platform:'MacIntel', hardwareConcurrency:8, deviceMemory:8, language:'en-US', timezone:'UTC'}});
     assert.match(await digest(snapshot), /^sg1_[a-f0-9]{64}$/);
@@ -29,13 +29,20 @@ try {
     const detailed = await collectDetailed({scope:'package-test',environment:{platform:'MacIntel',hardwareConcurrency:8},probes:{gpu:()=>'gpu',fonts:()=>'fonts'}});
     assert.match(await digestDetailed(detailed), /^sg2_[a-f0-9]{64}$/);
     assert.equal(matchDetailed(detailed,[{id:'detailed',snapshot:detailed}]).candidateId,'detailed');
+    const resilient = await collectResilient({scope:'package-test',environment:{platform:'MacIntel',hardwareConcurrency:8},probes:{gpu:()=>'Apple M3 Pro',fonts:()=>'10101'}});
+    assert.match(await continuityCode(resilient), /^sc1_[a-f0-9]{64}$/);
+    assert.equal(matchResilient(resilient,[{id:'resilient',snapshot:resilient}]).candidateId,'resilient');
     assert.equal(typeof createAgent({publicKey:'pk_'+'a'.repeat(32),endpoint:'https://identity.example.com'}).identify, 'function');
   `], {cwd: consumer, env, stdio: 'pipe'});
   await writeFile(join(consumer, 'consumer.ts'), `
-    import {collect, digest, match, type Candidate, type DetailedCandidate, collectDetailed, digestDetailed, matchDetailed} from 'fingerprint-singularity';
+    import {collect, digest, match, type Candidate, type DetailedCandidate, collectDetailed, digestDetailed, matchDetailed, collectResilient, continuityCode, matchResilient} from 'fingerprint-singularity';
     import {createAgent} from 'fingerprint-singularity/client';
     const s = collect({scope:'app'});
     const c: Candidate[] = [{id:'candidate',snapshot:s}];
+    const r = await collectResilient({scope:'app'});
+    const code: string|null = await continuityCode(r);
+    void code; void matchResilient(r,[]);
+    void createAgent({publicKey:'pk_'+'a'.repeat(32),mode:'resilient'});
     const d = await collectDetailed({scope:'app'});
     const candidates: DetailedCandidate[] = [{id:'detailed',snapshot:d}];
     void digestDetailed(d); void matchDetailed(d,candidates);

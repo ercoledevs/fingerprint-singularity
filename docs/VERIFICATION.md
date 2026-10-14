@@ -1,3 +1,55 @@
+# Version 0.4.0 verification
+
+Local checks on **14 October 2026**, macOS arm64, Node.js 24.21.0, Python 3.12 and disposable MongoDB 8.0.16:
+
+| Check | Result | Scope |
+| --- | --- | --- |
+| SDK, types and packaging | PASS | 43 Node tests, consumer types, offline packed imports and Vue production build |
+| Backend and CLI | PASS | 75 Python tests with actual MongoDB, including metadata, scoped server keys, concurrent consumption, restore replay and historical idempotency |
+| v3 parity | PASS | 2,207 TypeScript/Python cases, alongside unchanged legacy/v2 tests |
+| v3 retrieval | PASS | 64 queries × 243 states = 15,552 actual Mongo/kernel comparisons, engine context, missing evidence, 256 ambiguity and 257 overflow |
+| GPU alias regression | PASS | Known ANGLE/Metal/model-spacing variants normalize equally while meaningful model suffixes remain distinct |
+| Fresh browser profiles | PASS as execution checks | 160 collections: Chromium 145 and WebKit 26, two processes and eight temporary contexts per engine, cleared storage, reload, locale/timezone, DPR 1/2/3 and viewport changes |
+| Hardware continuity code in this browser run | UNAVAILABLE | GPU model absent in both engines: 0/160 available codes; nulls are not successful identity matches |
+| Real-device accuracy or superiority to a commercial service | UNKNOWN | No labeled multi-device longitudinal population or commercial reference outputs |
+
+Font and canvas results were stable within each tested engine, but canvas differed between Chromium and WebKit. With GPU unavailable, fonts alone did not satisfy v3 matching. The browser test therefore demonstrates storage independence and probe isolation, **not cross-browser hardware recognition**. Local Firefox was not executed; the CI workflow includes all three engines.
+
+## Paired regression fixtures
+
+`npm run evaluate:resilient` uses 64 synthetic profiles, two visits, seven scenarios and two arrival orders. Both implementations receive the same inputs. Labels never enter the observations. These are designed regression cases, not independent real devices or measured population entropy.
+
+| Scenario | v2 same-device link yield | v3 same-device link yield | False links v2 / v3 | v3 exclusive continuity |
+| --- | ---: | ---: | ---: | ---: |
+| Unchanged model/font groups | 100% | 100% | 0 / 0 | 100% |
+| Known GPU wrapper, cross-engine canvas and locale changes | 0% | 100% | 0 / 0 | 100% |
+| GPU unavailable on return | 0% | 0% | 0 / 0 | 0% |
+| Shared model/fonts, distinct canvas, same engine | 100% | 100% | 0 / 0 | 100% |
+| Shared model/fonts, distinct canvas, mixed engines | 100% | 50% | 0 / 2 | 48.44% |
+| Identical complete profiles | 100% | 100% | 8,064 / 8,064 | 0% |
+| Font profile changes | 0% | 0% | 0 / 0 | 0% |
+
+Both arrival orders give the displayed results. Link yield uses 64 same-device pairs per scenario; false links count assigned pairs among 8,064 different-device pairs. Exclusive continuity requires the same non-null ID on both visits and no different device sharing it.
+
+The mixed-engine counterexample exposes the cost of tolerating canvas differences: a shared model/font profile can merge before other rivals appear. Later ambiguity can cause abstention. v3 is not uniformly more precise than v2. Keep `mode: 'detailed'` when preserving strict rendering distinctions is preferable to this cross-engine tolerance.
+
+Continuity codes intentionally exclude canvas. They are available on 128/128 observations in the complete-profile fixtures and only 64/128 when GPU disappears on return. Their exclusive continuity is zero in shared-model/font fixtures even when backend visitor matching separates those devices. Increasing hash length cannot fix equal input profiles.
+
+## Reproduce
+
+```sh
+npm run check
+npm run test:package
+npm run build:console
+npm run evaluate:resilient
+npm run test:resilient-browser
+TEST_MONGO_URI=mongodb://127.0.0.1:27018 python -m pytest server/tests -q
+```
+
+Local browser selection can be restricted with `BROWSERS=chromium,webkit`; report omitted engines explicitly. Evidence files are `artifacts/improvement-v04/paired.json` and `browsers.json`. The optional REA artifact analysis and its limits are recorded in [Fingerprint research](FINGERPRINT_RESEARCH.md).
+
+---
+
 # Version 0.3.1 retrieval verification
 
 Local checks on **7 October 2026**, macOS arm64 and MongoDB 8.0.16. This patch changes candidate retrieval, not collected signals, hashes or matching thresholds.

@@ -1,5 +1,7 @@
 # Detailed observations and upgrading to 0.3
 
+> Version 0.4 defaults to the separate [resilient v3 pipeline](RESILIENT.md). This guide documents the unchanged v2 contract; select `mode: 'detailed'` to use it.
+
 `collectDetailed({scope})` produces a `singularity/v2` snapshot with the five legacy normalized signals, immutable probe revision `web/v1`, and three nullable hashes under `detail`: `gpu`, `fonts`, and `canvas`.
 
 ## Probe contract
@@ -46,7 +48,7 @@ Canonical tuples contain schema, scope, probe revision, the five coarse signals,
 ## Upgrade order
 
 1. Upgrade the Python backend. It accepts v1 and v2 on the existing `/api/v1/identify/{publicKey}` transport endpoint.
-2. Upgrade the JavaScript agent/console. `createAgent` defaults to `mode: 'detailed'`; select `mode: 'legacy'` explicitly for an older backend or existing v1 integration.
+2. Upgrade the JavaScript agent/console. Version 0.3 defaulted to detailed mode; with 0.4, explicitly select `mode: 'detailed'` to retain v2 or `mode: 'legacy'` for v1. The current default is the separate [resilient pipeline](RESILIENT.md).
 3. Retain historical v1 records unchanged. Stateless candidate pools are partitioned by schema. Starting with backend 0.3.1, v2 excludes known platform, core, GPU, font and canvas contradictions before the 256-candidate limit. Missing/null values remain possible rivals. The global enrollment quota remains 512.
 
 The first detailed request may create a new visitor even if a legacy candidate exists. Valid possession tokens continue across schemas until expiry/revocation. Existing v1 exports and canonical digests are unchanged.

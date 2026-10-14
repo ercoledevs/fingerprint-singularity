@@ -24,13 +24,17 @@ for (const [name, engine] of Object.entries({chromium, firefox, webkit})) {
   }
   await page.goto(base);
   const initial = await identify('Identify this browser');
+  assert.match(initial.digest, /^sg3_/);
+  assert.equal(typeof initial.history.visitorFound, 'boolean');
+  assert.equal(initial.origin, base);
+  assert.ok(initial.continuityCode === null || /^sc1_/.test(initial.continuityCode));
   if (initial.method === 'unassigned' && ['insufficient-observation','insufficient-detail'].includes(initial.reason)) {
     await page.getByText(initial.reason, {exact: true}).waitFor();
     await page.screenshot({path: `artifacts/platform/${name}-sparse-observation.png`, fullPage: true});
-    console.log(`PASS ${name}: unavailable detailed/default-locale evidence remains unassigned`);
+    console.log(`PASS ${name}: unavailable resilient/default-locale evidence remains unassigned`);
     await page.close();
     // Exercise the explicitly selectable legacy path when the CI renderer cannot
-    // provide enough detail. The detailed-mode abstention above remains tested.
+    // provide enough detail. The resilient-mode abstention above remains tested.
     page = await browser.newPage({viewport: {width: 1365, height: 1000}, locale: 'en-US'});
     page.on('pageerror', e => errors.push(e.message));
     await page.goto(base);
@@ -68,16 +72,23 @@ for (const [name, engine] of Object.entries({chromium, firefox, webkit})) {
   await page.getByLabel('Allowed origins', {exact: true}).fill(base);
   await page.getByRole('button', {name: 'Create project', exact: true}).click();
   await page.getByRole('status').filter({hasText: 'Project saved. Copy its snippet from Integration.'}).waitFor();
+  const projectCard = page.locator('.project-item').filter({hasText: 'Browser test ' + name});
+  await projectCard.getByRole('button', {name: 'Create server key', exact: true}).click();
+  await page.getByRole('button', {name: 'Dismiss secret', exact: true}).waitFor();
+  await projectCard.getByRole('button', {name: 'Rotate server key', exact: true}).waitFor();
   await page.getByRole('button', {name: 'Integration', exact: true}).click();
+  assert.equal(await page.getByRole('button', {name: 'Dismiss secret', exact: true}).count(), 0);
   await page.getByRole('heading', {name: '2. Identify a browser', exact: true}).waitFor();
   // Exercise the delivered SDK with a project created through the real GUI.
   const snippet = await page.locator('.integration pre').first().innerText();
   const publicKey = snippet.match(/publicKey: "(pk_[a-f0-9]+)"/)[1];
   const sdk = await page.evaluate(async ({base, publicKey}) => {
     const {createAgent} = await import(base + '/sdk/agent.js');
-    return createAgent({publicKey}).identify();
+    return createAgent({publicKey}).identify({linkedId:'browser-test',tags:{flow:'sdk-check'}});
   }, {base, publicKey});
   assert.match(sdk.eventId, /^evt_/);
+  assert.equal(sdk.linkedId, 'browser-test');
+  assert.deepEqual(sdk.tags, {flow:'sdk-check'});
   await page.getByRole('button', {name: 'Live demo', exact: true}).click();
   await page.setViewportSize({width: 390, height: 844});
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);

@@ -14,3 +14,4 @@ __pycache__/
 .admin-password
 backups/
 .local-state/
+.serena/

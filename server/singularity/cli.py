@@ -97,8 +97,8 @@ def parser():
     events = sub.add_parser("events", help="Search events using combinable filters (AND)")
     events.add_argument("--project", required=True)
     for name, help_text in [
-        ("event", "Exact event ID"), ("visitor", "Exact visitor ID"), ("digest", "Exact observation digest"),
-        ("prefix", "ID prefix: evt_, vis_, sg1_ or sg2_ followed by characters"), ("method", "provisional/inferred/enrolled/remembered/unassigned"),
+        ("event", "Exact event ID"), ("visitor", "Exact visitor ID"), ("digest", "Exact observation digest"), ("code", "Exact continuity code"), ("linked", "Exact application-linked ID"), ("origin", "Exact recorded HTTP origin"),
+        ("prefix", "ID prefix: evt_, vis_, sg1_, sg2_, sg3_ or sc1_ followed by characters"), ("method", "provisional/inferred/enrolled/remembered/unassigned"),
         ("reason", "Exact decision reason"), ("platform", "macos/windows/linux/ios/android/chromeos"),
         ("after", "Inclusive ISO timestamp, e.g. 2026-10-01T00:00:00Z"), ("before", "Exclusive ISO timestamp"),
         ("cursor", "Next cursor from a previous page; keep filters unchanged")]:
@@ -149,7 +149,7 @@ def display(data, command):
             console.print("Next page: repeat the filters and add --cursor", style="dim")
             console.print(data["nextCursor"], markup=False, soft_wrap=True)
     elif command == "show":
-        console.print(Panel(f'Event: {data["_id"]}\nVisitor: {data["visitorId"] or "Unassigned"}\nMethod: {data["method"]}\nReason: {data["reason"]}\nExpires: {data["expiresAt"]}', title="Singularity / Event", border_style="cyan"), markup=False)
+        console.print(Panel(f'Event: {data["_id"]}\nVisitor: {data["visitorId"] or "Unassigned"}\nContinuity code: {data.get("continuityCode") or "Unavailable"}\nMethod: {data["method"]}\nReason: {data["reason"]}\nExpires: {data["expiresAt"]}', title="Singularity / Event", border_style="cyan"), markup=False)
         console.print_json(data=data)
     elif command == "evaluate":
         table = Table(title="SINGULARITY  /  Identification evaluation", header_style="bold cyan", expand=True)
@@ -211,7 +211,7 @@ def main(argv=None):
                     if args.command == "show":
                         data = request(client, "GET", path + "/" + quote(args.event, safe=""))
                     else:
-                        filters = {k: v for k, v in vars(args).items() if k in {"event", "visitor", "digest", "prefix", "method", "reason", "platform", "after", "before", "cursor", "limit"} and v is not None}
+                        filters = {k: v for k, v in vars(args).items() if k in {"event", "visitor", "digest", "code", "linked", "origin", "prefix", "method", "reason", "platform", "after", "before", "cursor", "limit"} and v is not None}
                         data = request(client, "GET", path, params=filters)
         if args.json:
             print(json.dumps(data, ensure_ascii=False))

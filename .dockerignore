@@ -13,3 +13,6 @@ graphify-out
 *.tgz
 **/__pycache__
 **/*.egg-info
+
+tools
+.serena

@@ -3,10 +3,10 @@ import hashlib
 import json
 import re
 from datetime import datetime, timedelta, timezone
-from .security import now, open_cursor, seal_cursor
+from .security import now, open_cursor, seal_cursor, origin
 
 METHODS = {"provisional", "inferred", "remembered", "enrolled", "unassigned"}
-ALLOWED = {"event", "visitor", "digest", "prefix", "method", "reason", "platform", "after", "before", "limit", "cursor"}
+ALLOWED = {"event", "visitor", "digest", "code", "linked", "origin", "prefix", "method", "reason", "platform", "after", "before", "limit", "cursor"}
 
 
 def timestamp(value):
@@ -25,7 +25,15 @@ def query(project, params, secret):
     if not 1 <= limit <= 100:
         raise ValueError("Limit must be 1–100")
     q = {"project": project, "expiresAt": {"$gt": now()}}
-    for key, field in [("event", "_id"), ("visitor", "visitorId"), ("digest", "digest"), ("method", "method"), ("reason", "reason"), ("platform", "snapshot.signals.platform")]:
+    if 'linked' in filters:
+        if not re.fullmatch(r'[A-Za-z0-9._:@/-]{1,128}', filters['linked']):
+            raise ValueError('Invalid linked ID')
+        q['linkedId'] = filters['linked']
+    if 'origin' in filters:
+        if len(filters['origin']) > 512:
+            raise ValueError('Invalid origin')
+        q['origin'] = origin(filters['origin'])
+    for key, field in [("event", "_id"), ("visitor", "visitorId"), ("digest", "digest"), ("code", "continuityCode"), ("method", "method"), ("reason", "reason"), ("platform", "snapshot.signals.platform")]:
         if key in filters:
             v = filters[key]
             if len(v) > 128 or not re.fullmatch(r"[A-Za-z0-9_-]+", v):
@@ -37,9 +45,9 @@ def query(project, params, secret):
         v = filters["prefix"]
         if not 4 <= len(v) <= 68 or not re.fullmatch(r"[A-Za-z0-9_]+", v):
             raise ValueError("ID prefix must contain 4–68 letters, digits or underscores")
-        if not v.startswith(("evt_", "vis_", "sg1_", "sg2_")):
-            raise ValueError("ID prefix must start evt_, vis_, sg1_ or sg2_")
-        field = "_id" if v.startswith("evt_") else "visitorId" if v.startswith("vis_") else "digest"
+        if not v.startswith(("evt_", "vis_", "sg1_", "sg2_", "sg3_", "sc1_")):
+            raise ValueError("ID prefix must start evt_, vis_, sg1_, sg2_, sg3_ or sc1_")
+        field = "_id" if v.startswith("evt_") else "visitorId" if v.startswith("vis_") else "continuityCode" if v.startswith("sc1_") else "digest"
         if field in q:
             raise ValueError("Do not combine exact and prefix search for the same ID")
         q[field] = {"$gte": v, "$lt": v + "\uffff"}

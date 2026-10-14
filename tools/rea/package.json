@@ -1,0 +1,14 @@
+{
+  "name": "singularity-research-tools",
+  "private": true,
+  "description": "Optional local reverse engineering tools; excluded from the published SDK",
+  "engines": {
+    "node": "^22.19.0 || ^24.11.0 || >=26.0.0"
+  },
+  "dependencies": {
+    "rea-agents": "6.4.0"
+  },
+  "scripts": {
+    "rea": "rea"
+  }
+}

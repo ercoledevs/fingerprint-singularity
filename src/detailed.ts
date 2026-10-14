@@ -8,12 +8,12 @@ export interface DetailedCollectOptions extends CollectOptions { readonly probes
 const FONT_NAMES = Object.freeze(['Arial', 'Arial Black', 'Calibri', 'Cambria', 'Candara', 'Comic Sans MS', 'Consolas',
   'Courier New', 'Georgia', 'Helvetica', 'Impact', 'Menlo', 'Monaco', 'Segoe UI', 'Times New Roman', 'Verdana']);
 const SAMPLE = 'mmmmmmmmmmlliWW0123456789';
-async function hash(value: string): Promise<string> {
+export async function hash(value: string): Promise<string> {
   if (typeof globalThis.crypto?.subtle?.digest !== 'function') throw new SingularityError('CRYPTO_UNAVAILABLE', 'SHA-256 requires Web Crypto');
   const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
   return Array.from(new Uint8Array(bytes), b => b.toString(16).padStart(2, '0')).join('');
 }
-function gpuProbe(doc: Document): string | null {
+export function gpuProbe(doc: Document): string | null {
   const canvas = doc.createElement('canvas');
   canvas.width = canvas.height = 1;
   const gl = canvas.getContext('webgl', { failIfMajorPerformanceCaveat: true });
@@ -35,16 +35,16 @@ function context2d(doc: Document): CanvasRenderingContext2D | null {
   if (ctx) { ctx.direction = 'ltr'; if ('lang' in ctx) (ctx as CanvasRenderingContext2D & {lang: string}).lang = 'en'; }
   return ctx;
 }
-function fontsProbe(doc: Document): string | null {
+export function fontsProbe(doc: Document, names: readonly string[] = FONT_NAMES): string | null {
   const ctx = context2d(doc); if (!ctx) return null;
   const fallbacks = ['monospace', 'sans-serif', 'serif'];
   const width = (font: string): number => { ctx.font = `72px ${font}`; return ctx.measureText(SAMPLE).width; };
   const baseline = fallbacks.map(width);
   if (baseline.some(w => !Number.isFinite(w) || w <= 0)) return null;
-  const bits = FONT_NAMES.map(name => fallbacks.some((fallback, i) => width(`"${name}",${fallback}`) !== baseline[i]) ? '1' : '0').join('');
+  const bits = names.map(name => fallbacks.some((fallback, i) => width(`"${name}",${fallback}`) !== baseline[i]) ? '1' : '0').join('');
   return bits.includes('1') ? bits : null;
 }
-function canvasProbe(doc: Document): string | null {
+export function canvasProbe(doc: Document): string | null {
   const ctx = context2d(doc); if (!ctx) return null;
   ctx.fillStyle = '#153a2b'; ctx.fillRect(0, 0, 240, 80);
   ctx.fillStyle = '#b7e49e'; ctx.fillRect(7, 9, 83, 29);
@@ -60,7 +60,7 @@ function canvasProbe(doc: Document): string | null {
   for (let i = 0; i < pixels.length; i += 4096) chunks.push(String.fromCharCode(...pixels.subarray(i, i + 4096)));
   return chunks.join('');
 }
-function readStable(probe: (() => unknown) | undefined, maximum: number): string | null {
+export function readStable(probe: (() => unknown) | undefined, maximum: number): string | null {
   try {
     const first = probe?.();
     if (typeof first !== 'string' || first.length === 0 || first.length > maximum) return null;

@@ -23,21 +23,21 @@ npm install fingerprint-singularity
 Collect scoped observations and compare them with candidates retained by your application:
 
 ```ts
-import { collectDetailed, digestDetailed, matchDetailed } from 'fingerprint-singularity'
+import { collectResilient, continuityCode, matchResilient } from 'fingerprint-singularity'
 
-const snapshot = await collectDetailed({ scope: 'my-app.example' })
-const observationId = await digestDetailed(snapshot) // sg2_...
-const decision = matchDetailed(snapshot, []) // Supply retained candidates here.
+const snapshot = await collectResilient({ scope: 'my-app.example' })
+const code = await continuityCode(snapshot) // sc1_... or null
+const decision = matchResilient(snapshot, []) // Supply retained candidates here.
 
-console.log(observationId, decision.status, decision.candidateId)
+console.log(code, decision.status, decision.candidateId)
 ```
 
 The core has **zero runtime dependencies**, no network calls, cookies, storage or permission requests. It reads no screen dimensions. TypeScript declarations are included; browser hashing requires **HTTPS or localhost**.
 
-Detailed mode combines platform and core buckets with scoped GPU, font-availability and canvas hashes. At least two detailed signals must agree, with no comparable conflict. Missing evidence remains `null`; ambiguous matches remain unassigned. [API and examples →](docs/DETAILED.md)
+Resilient mode normalizes recognized GPU models, checks 64 fonts and interprets canvas differences by rendering engine. A **continuity code** can be recreated from the same scoped model/font profile without storage. The backend compares retained evidence and leaves ambiguous matches unassigned. [API and upgrades →](docs/RESILIENT.md)
 
 > [!NOTE]
-> An observation hash describes the collected data; the backend assigns a visitor ID from retained evidence. Matching does not guarantee identity; browser, font, driver or privacy changes can affect continuity. Keep these IDs separate from authentication. Hashing does not anonymize the data.
+> A continuity code describes a profile; the backend assigns a visitor ID from retained evidence. Identical profiles can share a code, and missing GPU/font evidence yields `null`. Browser, font, driver or privacy changes can affect continuity. Keep these IDs separate from authentication. Hashing does not anonymize the data.
 
 ## Self-host
 
@@ -54,12 +54,12 @@ docker compose --profile web up --build -d --wait
 
 Open **[localhost:8080](http://localhost:8080)**. Sign in as `admin` with the password in `.admin-password`. Keep this file and `.env` private.
 
-The console includes a live demo, event and visitor search, decision inspection, project origins, retention, and token revocation/deletion. Connect your site with `fingerprint-singularity/client`. [Integration →](docs/PLATFORM.md) · [HTTPS, updates and backups →](docs/DEPLOYMENT.md)
+The console includes a live demo, event and visitor search, first/previous visits, project origins, retention and deletion. Server keys support event retrieval, freshness checks and one-time consumption. Connect your site with `fingerprint-singularity/client`. [Integration →](docs/PLATFORM.md) · [HTTPS, updates and backups →](docs/DEPLOYMENT.md)
 
 <details>
 <summary><strong>Upgrading an existing installation</strong></summary>
 
-Upgrade the backend before the agent. The agent and console default to detailed mode; select `createAgent({ publicKey, mode: 'legacy' })` to retain the older collection path. Existing v1 exports and records remain unchanged; v1 and v2 candidate pools are separate. [Upgrade guide →](docs/DETAILED.md#upgrade-order)
+Upgrade the backend before the agent. Version 0.4 defaults to resilient mode with a new candidate pool; inferred visitor IDs can change during migration. Use `mode: 'detailed'` for v2 or `mode: 'legacy'` for v1 to retain the previous collection path. [Upgrade guide →](docs/RESILIENT.md#upgrade-order)
 
 </details>
 
@@ -73,7 +73,8 @@ From the cloned repository:
 pipx install ./server
 singularity login --url http://127.0.0.1:8080
 singularity events --project demo --method inferred --platform macos
-singularity --json events --project demo --prefix evt_ --limit 100
+singularity events --project demo --linked order:123 --origin https://shop.example
+singularity --json events --project demo --prefix sc1_ --limit 100
 ```
 
 <details>
@@ -94,12 +95,14 @@ docker compose --profile headless up --build -d --wait
 
 | Guide | Contents |
 | :--- | :--- |
-| [Detailed API](docs/DETAILED.md) | Probes, matching rules, schemas and upgrades |
+| [Resilient API](docs/RESILIENT.md) | Profile codes, cross-engine matching and upgrades |
+| [Detailed API](docs/DETAILED.md) | Previous v2 probes and matching contract |
 | [Platform API](docs/PLATFORM.md) | Integration, identifiers, enrollment and operating limits |
 | [Deployment](docs/DEPLOYMENT.md) | Docker, HTTPS, credentials, backup and recovery |
 | [CLI](docs/CLI.md) | ID searches, filters, pagination and automation |
 | [Evaluation](docs/EVALUATION.md) · [Verification](docs/VERIFICATION.md) | Labeled datasets, measured results and test scope |
 | [Architecture](docs/ARCHITECTURE.md) · [Research](docs/RESEARCH.md) | Design decisions and signal provenance |
+| [Fingerprint research](docs/FINGERPRINT_RESEARCH.md) | SDK analysis, observable behavior and adopted patterns |
 | [Legacy API](docs/LEGACY.md) | Original collector, contracts and family-omission policy |
 
 <details>
@@ -112,7 +115,8 @@ npm ci
 npm run check                   # Build, contracts and types
 npx playwright install          # Install test browsers
 npm run test:browser             # Legacy browser checks and demo
-npm run test:detailed-browser    # Detailed probes across browser engines
+npm run test:resilient-browser   # Fresh profiles, storage clearing and engine checks
+npm run evaluate:resilient       # Paired synthetic v2/v3 regression fixtures
 npm run test:package             # Packed consumer imports
 npm run bench                   # Performance and memory
 npm run demo                    # Local demo at http://127.0.0.1:4173

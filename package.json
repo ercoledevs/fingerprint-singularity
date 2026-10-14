@@ -1,7 +1,7 @@
 {
   "name": "fingerprint-singularity",
-  "version": "0.3.1",
-  "description": "Display-independent observations and conservative, explainable candidate matching. No universal device identity guarantee.",
+  "version": "0.4.0",
+  "description": "Self-hosted browser identification with repeatable scoped profile codes and explainable matching.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -58,7 +58,9 @@
     "prepack": "npm run build",
     "test:package": "npm run build && node scripts/package-check.mjs",
     "build:console": "npm run build && npm run build --prefix web && node scripts/build-sdk.mjs",
-    "test:detailed-browser": "npm run build && node scripts/detailed-browser-check.mjs"
+    "test:detailed-browser": "npm run build && node scripts/detailed-browser-check.mjs",
+    "test:resilient-browser": "npm run build && node scripts/resilient-browser-check.mjs",
+    "evaluate:resilient": "npm run build && node scripts/evaluate-resilient.mjs"
   },
   "devDependencies": {
     "playwright": "1.58.2",

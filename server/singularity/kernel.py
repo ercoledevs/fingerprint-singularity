@@ -137,6 +137,9 @@ def match_v1(snapshot, candidates):
 
 
 def implementation(snapshot):
+    if type(snapshot) is dict and snapshot.get('schema') == 'singularity/v3':
+        from . import resilient_kernel
+        return resilient_kernel
     if type(snapshot) is dict and snapshot.get('schema') == 'singularity/v2':
         from . import detailed_kernel
         return detailed_kernel
@@ -171,3 +174,10 @@ def sufficient(snapshot):
 def match(snapshot, candidates):
     module = implementation(snapshot)
     return module.match(snapshot, candidates) if module else match_v1(snapshot, candidates)
+
+
+def continuity_code(snapshot):
+    if snapshot['schema'] == 'singularity/v3':
+        from .resilient_kernel import continuity_code as code
+        return code(snapshot)
+    return None

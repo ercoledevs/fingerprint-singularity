@@ -21,14 +21,21 @@ INDEX_PARTIAL_FILTER = {'anchor': True, 'snapshot.schema': 'singularity/v2'}
 def anchor_filter(project, snapshot, at):
     query = {'project': project, 'snapshot.schema': snapshot['schema'],
              'anchor': True, 'expiresAt': {'$gt': at}}
-    if snapshot['schema'] == 'singularity/v2':
-        for section, keys in [('signals', ('platform', 'cores')), ('detail', DETAIL_KEYS)]:
+    if snapshot['schema'] in ('singularity/v2', 'singularity/v3'):
+        details = DETAIL_KEYS if snapshot['schema'] == 'singularity/v2' else ('gpu', 'fonts')
+        for section, keys in [('signals', ('platform', 'cores')), ('detail', details)]:
             for key in keys:
                 value = snapshot[section][key]
                 if value is not None:
                     # Mongo null equality also includes absent fields. Never filter
                     # for presence: an incomplete compatible rival blocks a winner.
                     query[f'snapshot.{section}.{key}'] = {'$in': [value, None]}
+    if snapshot['schema'] == 'singularity/v3' and snapshot['detail']['canvas'] is not None:
+        canvas = {'snapshot.detail.canvas': {'$in': [snapshot['detail']['canvas'], None]}}
+        # Only a known, different engine can explain a rendering disagreement.
+        query['$or'] = [canvas]
+        if snapshot['engine'] is not None:
+            query['$or'].append({'snapshot.engine': {'$in': [e for e in ('blink', 'gecko', 'webkit') if e != snapshot['engine']]}})
     return query
 
 
@@ -38,5 +45,16 @@ def index_for(snapshot):
 Every indexed field before expiry is constrained. A separate index for each
 available pair avoids scanning an expired backlog behind an unknown third field.
 """
+    if snapshot['schema'] == 'singularity/v3':
+        return 'v3_candidates_gpu_fonts' if snapshot['detail']['gpu'] is not None else 'v3_candidates_fonts'
     available = tuple(key for key in DETAIL_KEYS if snapshot['detail'][key] is not None)
     return INDEX_NAMES[available]
+
+
+# Shared structural prefix; the conditional engine/canvas predicate is applied after lookup.
+RESILIENT_PARTIAL_FILTER = {'anchor': True, 'snapshot.schema': 'singularity/v3'}
+RESILIENT_INDEXES = {
+    'v3_candidates_' + '_'.join(keys): [('project', 1), ('snapshot.signals.platform', 1), ('snapshot.signals.cores', 1)]
+    + [('snapshot.detail.' + key, 1) for key in keys] + [('expiresAt', 1)]
+    for keys in [('fonts',), ('gpu', 'fonts')]
+}

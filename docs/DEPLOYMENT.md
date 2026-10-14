@@ -70,7 +70,7 @@ python3 scripts/setup.py --rotate
 docker compose --profile web up -d --force-recreate api web
 ```
 
-For headless mode, replace `--profile web` and `web` with `--profile headless` and `gateway`. Rotation invalidates existing admin sessions and remembered-browser tokens. It preserves MongoDB credentials and the project public keys. Database-account rotation is a separate operator procedure and must update the Mongo user as well as `.env`.
+For headless mode, replace `--profile web` and `web` with `--profile headless` and `gateway`. Rotation invalidates existing admin sessions, remembered-browser tokens and server API keys. Create fresh server keys in Projects and update backend integrations afterward. Rotation preserves MongoDB credentials and project public keys. Database-account rotation is a separate operator procedure and must update the Mongo user as well as `.env`.
 
 Before an update, take a backup, record the current Git commit and image versions, then pull/build the desired release. Keep the old commit available for rollback. Do not run an older release against a future schema without its migration guidance. This release uses `singularity-backup/v1` and has no automatic schema migration.
 
@@ -90,7 +90,7 @@ docker compose --profile web up -d api
 
 Verify that the command succeeded before treating the output as a backup. It ends with a completion record. Store the archive encrypted off-server, and retain the matching application version. Admin sessions are excluded.
 
-The **`identity_state` volume is independent of database backups**. It contains a state ID and a durable deletion ledger. Keep a current copy of that volume independently, including cancellations made after older database backups. Never restore an older deletion ledger over a newer one. If that independent state is lost, the supplied restore procedure refuses a state-ID mismatch.
+The **`identity_state` volume is independent of database backups**. It contains a state ID and a durable recovery ledger (`deletions.jsonl`). Version 0.4 also records server-key changes and consumed events there. Keep a current copy of that volume independently, including changes made after older database backups. Never restore an older ledger over a newer one. If that independent state is lost, the supplied restore procedure refuses a state-ID mismatch. Once new ledger record types are written, do not start a pre-0.4 API against that state volume; it cannot replay them.
 
 ## Restore and deletion replay
 
@@ -106,7 +106,7 @@ docker compose --profile web up -d --force-recreate api web
 
 The restore checks the archive format/completion, matching independent state and changed application secret before replacement. It uses a quarantine marker during replacement, removes restored possession tokens, excludes admin sessions and replays the deletion ledger before reopening. An interrupted restore leaves the marker and blocks API startup; repeat the complete restore with the same current ledger. Do not remove the marker to bypass an incomplete restore.
 
-After restoration, sign in with the newly generated password, check health and retained events, and verify that recently deleted visitors remain absent. Expired records are excluded from reads even before TTL cleanup. Restart the chosen web/gateway service when recreating the API so its upstream address is refreshed.
+After restoration, sign in with the newly generated password, create new server keys, check health and retained events, and verify that recently deleted visitors remain absent and consumed events remain used. Expired records are excluded from reads even before TTL cleanup. Restart the chosen web/gateway service when recreating the API so its upstream address is refreshed.
 
 ## Local development
 

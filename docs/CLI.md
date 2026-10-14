@@ -39,14 +39,17 @@ singularity events --project demo \
   --after 2026-10-01T00:00:00Z --before 2026-11-01T00:00:00Z
 
 singularity events --project demo --visitor vis_REPLACE_WITH_VISITOR_ID
-singularity events --project demo --digest sg1_REPLACE_WITH_DIGEST
+singularity events --project demo --code sc1_REPLACE_WITH_CODE
+singularity events --project demo --linked order:123 --origin https://shop.example
 singularity events --project demo --prefix evt_a83f --reason stable-candidate
 ```
 
 | Argument | Behavior |
 |---|---|
-| `--event`, `--visitor`, `--digest` | Exact ID match |
-| `--prefix` | Prefix of an `evt_`, `vis_`, `sg1_` or `sg2_` ID, 4–68 characters |
+| `--event`, `--visitor`, `--digest`, `--code` | Exact ID match |
+| `--prefix` | Prefix of an `evt_`, `vis_`, `sg1_`, `sg2_`, `sg3_` or `sc1_` ID, 4–68 characters |
+| `--linked` | Exact application-linked ID, up to 128 characters |
+| `--origin` | Exact HTTP(S) origin recorded on the request |
 | `--method` | `provisional`, `inferred`, `enrolled`, `remembered`, `unassigned` |
 | `--reason` | Exact decision reason, such as `ambiguous-candidates` |
 | `--platform` | `macos`, `windows`, `linux`, `ios`, `android`, `chromeos` |

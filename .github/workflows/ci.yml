@@ -16,11 +16,15 @@ jobs:
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run test:browser
       - run: npm run test:detailed-browser
+      - run: npm run test:resilient-browser
+      - run: npm run evaluate:resilient
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: detailed-browser-evidence
-          path: artifacts/improvement-v03
+          path: |
+            artifacts/improvement-v03
+            artifacts/improvement-v04
       - run: npm run bench
       - run: npm pack --dry-run
       - run: npm run test:package

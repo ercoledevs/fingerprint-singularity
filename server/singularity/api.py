@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import hmac
 import json
+import re
 import secrets
 import threading
 import time
@@ -19,6 +20,7 @@ from pymongo.errors import PyMongoError
 from . import kernel, retrieval, search
 from .security import mac, now, origin, settings, uid, verify_password
 from .store import Store
+from . import event_context
 
 
 class StrictModel(BaseModel):
@@ -30,6 +32,15 @@ class Identification(StrictModel):
     requestId: Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{16,80}$")]
     remember: StrictBool = False
     token: Annotated[str | None, Field(max_length=150)] = None
+    linkedId: Annotated[str | None, Field(pattern=r"^[A-Za-z0-9._:@/-]{1,128}$")] = None
+    tags: Annotated[dict[Annotated[str, Field(pattern=r"^[A-Za-z0-9_-]{1,32}$")], Annotated[StrictStr, Field(max_length=256)]], Field(max_length=16)] = Field(default_factory=dict)
+
+
+class EventVerification(StrictModel):
+    expectedOrigin: Annotated[str, Field(min_length=1, max_length=512)]
+    maxAgeSeconds: Annotated[int, Field(ge=1, le=3600)] = 300
+    requireVisitor: StrictBool = True
+    consume: StrictBool = False
 
 
 class Login(StrictModel):
@@ -106,7 +117,7 @@ async def lifespan(app):
     app.state.store.close()
 
 
-app = FastAPI(title="Singularity API", version="0.3.1", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="Singularity API", version="0.4.0", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 
 
 @app.exception_handler(PyMongoError)
@@ -186,14 +197,15 @@ def project_by_id(store, project):
 
 
 def visible_event(e):
-    return {k: e[k] for k in ("_id", "project", "createdAt", "expiresAt", "digest", "visitorId", "method", "reason", "snapshot", "decision")}
+    return {**{k: e[k] for k in ("_id", "project", "createdAt", "expiresAt", "digest", "visitorId", "method", "reason", "snapshot", "decision")},
+            **{k: e.get(k) for k in ('continuityCode', 'origin', 'linkedId', 'history', 'consumedAt')}, 'tags': e.get('tags', {})}
 
 
 @app.get("/api/health")
 def health(request: Request):
     store, _ = context(request)
     store.db.command("ping")
-    return {"status": "ready", "version": "0.3.1"}
+    return {"status": "ready", "version": "0.4.0"}
 
 
 @app.get("/api/config")
@@ -228,7 +240,13 @@ def identify(key: str, data: Identification, request: Request):
             bound = store.events.find_one({"project": p["_id"], "anchor": True, "tokenHash": mac(cfg["secret"], data.token), "expiresAt": {"$gt": t}}, max_time_ms=1000)
             if bound is None:
                 raise HTTPException(410, "Remembered-browser token expired or revoked; forget it before enrolling again")
-        req_hash = hashlib.sha256(json.dumps(data.model_dump(), sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        payload = data.model_dump(exclude={'linkedId', 'tags'})
+        # Preserve historical request hashes when no new metadata is supplied.
+        if data.linkedId is not None:
+            payload['linkedId'] = data.linkedId
+        if data.tags:
+            payload['tags'] = data.tags
+        req_hash = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         previous = store.events.find_one({"project": p["_id"], "requestKey": data.requestId}, max_time_ms=1000)
         if previous:
             if previous["expiresAt"] <= t:
@@ -249,7 +267,7 @@ def identify(key: str, data: Identification, request: Request):
         visitor = token = None
         anchor = False
         decision = {"policy": kernel.policy(s), "status": "abstain", "candidateCount": 0, "omissions": []}
-        method, reason = "unassigned", "insufficient-detail" if s['schema'] == 'singularity/v2' else "insufficient-observation"
+        method, reason = "unassigned", "insufficient-detail" if s['schema'] in ('singularity/v2', 'singularity/v3') else "insufficient-observation"
         expires = t + timedelta(days=p["retentionDays"])
         if data.token:
             visitor, method, reason = bound["visitorId"], "remembered", "possession-token"
@@ -257,7 +275,7 @@ def identify(key: str, data: Identification, request: Request):
         elif kernel.sufficient(s):
             candidate_filter = retrieval.anchor_filter(p['_id'], s, t)
             cursor = store.events.find(candidate_filter, {"visitorId": 1, "snapshot": 1, "expiresAt": 1})
-            if s['schema'] == 'singularity/v2':
+            if s['schema'] in ('singularity/v2', 'singularity/v3'):
                 cursor = cursor.hint(retrieval.index_for(s))
             candidates = list(cursor.limit(257).max_time_ms(1500))
             decision["candidateCount"] = len(candidates)
@@ -282,8 +300,10 @@ def identify(key: str, data: Identification, request: Request):
                 elif result["status"] == "unmatched":
                     visitor, anchor, method = uid("vis_"), True, "provisional"
         event = uid("evt_")
-        response = dict(eventId=event, visitorId=visitor, digest=kernel.digest(s), method=method, reason=reason,
-                        decision=decision, createdAt=t, expiresAt=expires)
+        response = dict(eventId=event, visitorId=visitor, digest=kernel.digest(s), continuityCode=kernel.continuity_code(s), method=method, reason=reason,
+                        decision=decision, createdAt=t, expiresAt=expires,
+                        history=event_context.history(store, p['_id'], visitor, t),
+                        origin=request.headers.get('origin'), linkedId=data.linkedId, tags=data.tags)
         document = dict(_id=event, project=p["_id"], requestKey=data.requestId, requestHash=req_hash, snapshot=s,
                         anchor=anchor, response=response, **{k: v for k, v in response.items() if k != "eventId"})
         if token:
@@ -328,7 +348,7 @@ def logout(request: Request, response: Response, raw=Depends(admin)):
 @app.get("/api/admin/projects")
 def projects(request: Request, _=Depends(admin)):
     store, _ = context(request)
-    return list(store.projects.find({}).limit(32).max_time_ms(1500))
+    return [event_context.public_project(p) for p in store.projects.find({}).limit(32).max_time_ms(1500)]
 
 
 def project_values(data):
@@ -349,7 +369,7 @@ def create_project(data: Project, request: Request, _=Depends(admin)):
         p = dict(_id=uid("prj_"), publicKey=uid("pk_"), createdAt=now(), **project_values(data))
         store.projects.insert_one(p)
         store.refresh_origins()
-        return p
+        return event_context.public_project(p)
 
 
 @app.put("/api/admin/projects/{project}")
@@ -366,7 +386,7 @@ def update_project(project: str, data: Project, request: Request, _=Depends(admi
         store.events.update_many({"project": project}, [{"$set": {"expiresAt": {"$min": ["$expiresAt", {"$add": ["$createdAt", values["retentionDays"] * 86400000]}]}}}])
         store.projects.update_one({"_id": project}, {"$set": values})
         store.refresh_origins()
-        return {**p, **values}
+        return event_context.public_project({**p, **values})
 
 
 @app.get("/api/admin/projects/{project}/events")
@@ -393,6 +413,73 @@ def event_detail(project: str, event: str, request: Request, _=Depends(admin)):
     if e is None:
         raise HTTPException(404, "Event not found or expired")
     return visible_event(e)
+
+
+@app.post('/api/admin/projects/{project}/server-key')
+def rotate_server_key(project: str, request: Request, _=Depends(admin)):
+    store, cfg = context(request)
+    with store.serial():
+        project_by_id(store, project)
+        key = uid('sk_') + uid('')
+        store.record_change(dict(kind='server-key', project=project,
+                                hash=event_context.server_key_hash(cfg['secret'], project, key)))
+        return JSONResponse({'serverKey': key}, headers={'Cache-Control': 'no-store'})
+
+
+@app.delete('/api/admin/projects/{project}/server-key')
+def revoke_server_key(project: str, request: Request, _=Depends(admin)):
+    store, _ = context(request)
+    with store.serial():
+        project_by_id(store, project)
+        store.record_change(dict(kind='server-key', project=project, hash=None))
+    return {'ok': True}
+
+
+def server_event(project, event, request):
+    store, cfg = context(request)
+    # A single fixed bucket bounds unauthenticated callers and dictionary memory.
+    rate(request, 'server-api', 240)
+    authorization = request.headers.get('authorization', '')
+    key = authorization[7:] if authorization.startswith('Bearer ') else ''
+    p = store.projects.find_one({'_id': project}, {'serverKeyHash': 1}, max_time_ms=1000)
+    expected = p.get('serverKeyHash') if p else None
+    if not re.fullmatch(r'sk_[a-f0-9]{64}', key) or not expected or not hmac.compare_digest(
+            expected, event_context.server_key_hash(cfg['secret'], project, key)):
+        raise HTTPException(401, 'Invalid server credential')
+    e = store.events.find_one({'project': project, '_id': event, 'expiresAt': {'$gt': now()}}, max_time_ms=1000)
+    if e is None:
+        raise HTTPException(404, 'Event not found or expired')
+    return e
+
+
+@app.get('/api/server/projects/{project}/events/{event}')
+def retrieve_server_event(project: str, event: str, request: Request):
+    store, _ = context(request)
+    with store.serial():
+        e = server_event(project, event, request)
+        return JSONResponse(jsonable_encoder(visible_event(e)), headers={'Cache-Control': 'no-store'})
+
+
+@app.post('/api/server/projects/{project}/events/{event}/verify')
+def verify_server_event(project: str, event: str, data: EventVerification, request: Request):
+    store, _ = context(request)
+    try:
+        origin(data.expectedOrigin)
+    except ValueError:
+        raise HTTPException(422, 'Expected origin must be an exact HTTP(S) origin')
+    with store.serial():
+        e = server_event(project, event, request)
+        at = now()
+        checks = dict(fresh=timedelta(0) <= at - e['createdAt'] <= timedelta(seconds=data.maxAgeSeconds),
+                      originMatches=e.get('origin') == data.expectedOrigin,
+                      visitorAssigned=e['visitorId'] is not None,
+                      unused=e.get('consumedAt') is None)
+        verified = checks['fresh'] and checks['originMatches'] and checks['unused'] and (checks['visitorAssigned'] or not data.requireVisitor)
+        if verified and data.consume:
+            store.record_change(dict(kind='consume-event', project=project, event=event, time=at.isoformat()))
+        return JSONResponse(jsonable_encoder(dict(eventId=event, visitorId=e['visitorId'], verified=verified,
+                            checks=checks, consumed=bool(verified and data.consume), verifiedAt=at)),
+                            headers={'Cache-Control': 'no-store'})
 
 
 @app.post("/api/admin/projects/{project}/visitors/{visitor}/revoke")

@@ -44,9 +44,11 @@ class Store:
         self.events.create_index([("project", 1), ("snapshot.schema", 1), ("snapshot.signals.platform", 1), ("anchor", 1), ("expiresAt", 1)])
         for name, keys in retrieval.INDEXES.items():
             self.events.create_index(keys, name=name, partialFilterExpression=retrieval.INDEX_PARTIAL_FILTER)
+        for name, keys in retrieval.RESILIENT_INDEXES.items():
+            self.events.create_index(keys, name=name, partialFilterExpression=retrieval.RESILIENT_PARTIAL_FILTER)
         self.events.create_index([("project", 1), ("createdAt", -1), ("_id", -1)])
         self.events.create_index([("project", 1), ("_id", 1)])
-        for field in ["visitorId", "digest", "method", "reason", "snapshot.signals.platform"]:
+        for field in ["visitorId", "digest", "continuityCode", "linkedId", "origin", "method", "reason", "snapshot.signals.platform"]:
             self.events.create_index([("project", 1), (field, 1), ("createdAt", -1), ("_id", -1)])
         self.events.create_index("expiresAt", expireAfterSeconds=0)
         self.sessions.create_index("expiresAt", expireAfterSeconds=0)
@@ -85,7 +87,12 @@ class Store:
 
     def apply_deletion(self, item):
         project = item["project"]
-        if item["kind"] == "project":
+        if item['kind'] == 'server-key':
+            self.projects.update_one({'_id': project}, {'$set': {'serverKeyHash': item['hash']}})
+        elif item['kind'] == 'consume-event':
+            from datetime import datetime
+            self.events.update_one({'project': project, '_id': item['event']}, {'$set': {'consumedAt': datetime.fromisoformat(item['time'])}})
+        elif item["kind"] == "project":
             self.projects.delete_one({"_id": project})
             self.events.delete_many({"project": project})
         else:
@@ -104,7 +111,10 @@ class Store:
                     self.apply_deletion(json.loads(line))
 
     def delete(self, item):
-        # Ledger is on a separate volume from Mongo backups. Durability precedes removal.
+        self.record_change(item)
+
+    def record_change(self, item):
+        # Independent recovery ledger: persist before deletion, key change or consumption.
         try:
             with self.ledger.open("a") as stream:
                 stream.write(json.dumps(item, separators=(",", ":")) + "\n")

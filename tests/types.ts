@@ -15,3 +15,8 @@ const detailed: Promise<DetailedSnapshot> = collectDetailed({scope: 'example.tes
 const detailedResult: Promise<DetailedMatchResult> = detailed.then(s => matchDetailed(s, []));
 const detailedCode: Promise<string> = detailed.then(digestDetailed);
 void detailedResult; void detailedCode;
+
+import {collectResilient, continuityCode, matchResilient, type ResilientSnapshot} from '../dist/index.js';
+const resilient: Promise<ResilientSnapshot> = collectResilient({scope:'example.test'});
+const repeatable: Promise<string|null> = resilient.then(continuityCode);
+void repeatable; void resilient.then(s => matchResilient(s,[]));
