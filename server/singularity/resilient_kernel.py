@@ -3,12 +3,13 @@ import hashlib
 import json
 import re
 from .kernel import Invalid, identifier, record, validate_v1
+from .native import accelerator
 
 POLICY = 'support/v3'
 KEYS = ['gpu', 'fonts', 'canvas']
 
 
-def validate(value):
+def validate_python(value):
     record(value, ['schema', 'scope', 'signals', 'probe', 'engine', 'detail'])
     if value['schema'] != 'singularity/v3' or value['probe'] != 'web/v2':
         raise Invalid('INCOMPATIBLE_SCHEMA')
@@ -20,6 +21,17 @@ def validate(value):
         if v is not None and (type(v) is not str or not re.fullmatch(r'[a-f0-9]{64}', v)):
             raise Invalid()
     return dict(schema='singularity/v3', scope=coarse['scope'], signals=coarse['signals'], probe='web/v2', engine=value['engine'], detail=dict(value['detail']))
+
+
+def validate(value):
+    if accelerator is None:
+        return validate_python(value)
+    try:
+        return accelerator.validate(value)
+    except accelerator.UnsupportedInput:
+        return validate_python(value)
+    except accelerator.InvalidInput as exc:
+        raise Invalid(str(exc)) from None
 
 
 def canonicalize(snapshot):
@@ -50,12 +62,12 @@ def sufficient(snapshot):
     return compare(snapshot, snapshot)['qualifies']
 
 
-def match(snapshot, candidates):
+def match_python(snapshot, candidates):
     if type(candidates) is not list:
         raise Invalid()
     if len(candidates) > 256:
         raise Invalid('LIMIT_EXCEEDED')
-    observation = validate(snapshot)
+    observation = validate_python(snapshot)
     ids, ranking = set(), []
     for c in candidates:
         record(c, ['id', 'snapshot'])
@@ -63,7 +75,7 @@ def match(snapshot, candidates):
         if c['id'] in ids:
             raise Invalid('DUPLICATE_ID')
         ids.add(c['id'])
-        other = validate(c['snapshot'])
+        other = validate_python(c['snapshot'])
         if other['scope'] != observation['scope']:
             raise Invalid('SCOPE_MISMATCH')
         ranking.append(dict(id=c['id'], **compare(observation, other)))
@@ -79,6 +91,17 @@ def match(snapshot, candidates):
     if any(not c['qualifies'] and not c['contradictions'] for c in ranking):
         return result('abstain', 'insufficient-candidate-evidence')
     return result('matched', 'supported-candidate', eligible[0]['id']) if eligible else result('unmatched', 'no-candidate-qualified')
+
+
+def match(snapshot, candidates):
+    if accelerator is None:
+        return match_python(snapshot, candidates)
+    try:
+        return accelerator.match_resilient(snapshot, candidates)
+    except accelerator.UnsupportedInput:
+        return match_python(snapshot, candidates)
+    except accelerator.InvalidInput as exc:
+        raise Invalid(str(exc)) from None
 
 
 def continuity_code(snapshot):

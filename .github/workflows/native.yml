@@ -1,0 +1,42 @@
+name: native-kernel
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mongo:
+        image: mongo:8.0.16
+        ports: ['27017:27017']
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'quit(db.adminCommand({ping:1}).ok ? 0 : 1)'"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    env:
+      TEST_MONGO_URI: mongodb://127.0.0.1:27017/native_tests
+      PYTHONPATH: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Rust toolchain
+        run: rustup toolchain install 1.99.0 --profile minimal --component rustfmt --component clippy && rustup default 1.99.0
+      - run: cargo fmt --manifest-path server/native/Cargo.toml --check
+      - run: cargo clippy --manifest-path server/native/Cargo.toml --locked -- -D warnings
+      - run: npm ci --ignore-scripts && npm run build
+      - run: python -m pip install './server[server,test]' ./server/native
+      - name: Python fallback and TypeScript parity
+        run: SINGULARITY_KERNEL=python python -m pytest server/tests -q
+      - name: Required Rust and TypeScript parity
+        run: SINGULARITY_KERNEL=rust python -m pytest server/tests -q
+      - name: FFI-inclusive benchmark
+        run: SINGULARITY_KERNEL=rust python scripts/benchmark-native.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-performance
+          path: artifacts/native/performance.json

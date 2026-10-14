@@ -4,6 +4,11 @@ The library exposes three versioned pipelines. The network agent defaults to res
 
 ## Resilient pipeline
 
+The backend optionally accelerates v3 validation and matching with the PyO3
+Rust kernel. Its Python reference remains available for parity and rollback;
+canonicalization and hashing retain their existing Python representation.
+See [native installation, selection and benchmarks](NATIVE_KERNEL.md).
+
 `src/resilient.ts` reuses the isolated detailed probes with a fixed 64-font panel and conservative GPU model normalization. Versioned `web/v2` detail hashes and bounded rendering-engine context form a strict `singularity/v3` snapshot. Its full `sg3_` digest includes all observations. A separate `sc1_` code uses a fixed platform/core/GPU/font projection, with no weaker fallback when evidence is unavailable.
 
 `src/resilient-match.ts` requires fonts plus GPU or canvas agreement. Known different engines can explain a canvas difference; known same-engine or unknown-engine canvas conflicts still veto. Platform/core/model/font conflicts remain decisive. Complete validation, compatible rivals and the 256-candidate limit are preserved. The Python implementation dispatches by schema, and the Mongo predicate preserves every compatible contender, including nulls and cross-engine canvas differences. See [resilient contracts](RESILIENT.md).

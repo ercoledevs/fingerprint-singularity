@@ -16,3 +16,5 @@ graphify-out
 
 tools
 .serena
+server/native/target
+server/native/dist

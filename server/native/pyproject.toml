@@ -1,0 +1,15 @@
+[build-system]
+requires = ["maturin==1.15.0"]
+build-backend = "maturin"
+
+[project]
+name = "singularity-native"
+version = "0.4.0"
+description = "Optional Rust acceleration for Singularity support/v3"
+requires-python = ">=3.12"
+license = "MIT"
+
+[tool.maturin]
+module-name = "singularity_native"
+bindings = "pyo3"
+locked = true

@@ -2,6 +2,7 @@
 import hashlib
 import json
 import re
+from .native import BACKEND as V3_BACKEND
 
 POLICY = "envelope/v1"
 FAMILIES = ["platform", "compute", "locale"]

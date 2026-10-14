@@ -1,6 +1,10 @@
 # Rust assessment after the 0.4.0 intensive evaluation
 
-Assessment on 14 October 2026. **A complete Rust rewrite is not justified by the measured results.** Selective native work may be useful after profiling a production workload. No Rust implementation was benchmarked, so no speedup percentage is established.
+Original assessment on 14 October 2026, before the native kernel was implemented.
+**A complete Rust rewrite is not justified by these original measured results.**
+The project now includes an optional Rust kernel for v3 validation and matching;
+see [installation, fallback and the FFI-inclusive benchmark](NATIVE_KERNEL.md).
+The measurements below remain the original Python/Node baseline, without a Rust comparator.
 
 ## Measured costs
 
@@ -43,4 +47,4 @@ python3 scripts/prepare-intensive-sdks.py
 PYTHON=python3 node scripts/benchmark-matching.mjs
 ```
 
-Evidence: `artifacts/intensive-v04/matching-performance.json`. The `rust` field is deliberately `null` because no equivalent Rust comparator was run.
+Historical evidence: `artifacts/intensive-v04/matching-performance.json`. Its `rust` field remains `null` because that original run had no equivalent Rust comparator. New paired Python/Rust evidence is generated separately in `artifacts/native/performance.json` by `python scripts/benchmark-native.py`.

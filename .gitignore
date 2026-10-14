@@ -15,3 +15,5 @@ __pycache__/
 backups/
 .local-state/
 .serena/
+server/native/target/
+server/native/dist/

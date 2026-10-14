@@ -30,6 +30,7 @@ services:
       ADMIN_USER: ${ADMIN_USER:-admin}
       APP_ORIGIN: ${APP_ORIGIN:-http://localhost:8080}
       DEMO_PUBLIC_KEY: ${DEMO_PUBLIC_KEY:?Run scripts/setup.py}
+      SINGULARITY_KERNEL: ${SINGULARITY_KERNEL:-auto}
     depends_on:
       mongo: {condition: service_healthy}
     volumes: [identity_state:/state]
