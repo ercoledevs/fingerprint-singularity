@@ -45,5 +45,21 @@ for(const [version,match] of [['0.3.0',old.matchDetailed],['0.4.0',current.match
 const report={source:'one-host-paired-empirical',physicalHosts:1,totalPairedObservations:rows.length,
   datasetOrder:[...browsers.keys()],failedAttempts:failures,uniqueness:null,browsers:[...browsers.values()],versions,
   note:'Matching replay uses the exact public SDKs, not HTTP/Mongo. Replay order is explicit; null assignments and failed runs are retained in their proper denominators. Incognito context and fresh profile repetitions do not become separate devices.'};
+function permutations(input){return input.length?input.flatMap((v,i)=>permutations(input.filter((_,j)=>i!==j)).map(p=>[v,...p])):[[]];}
+report.arrivalOrderSensitivity=[];
+if(browsers.size>5)throw Error('Too many browsers for exhaustive order replay');
+for(const order of permutations([...browsers.keys()])){
+  const result={order,versions:{}};
+  for(const [version,match] of [['0.3.0',old.matchDetailed],['0.4.0',current.matchResilient]]){
+    const pool=[],replay=[];
+    for(const name of order)for(const row of samples.get(name)){
+      const snapshot=row[version].snapshot,decision=match(snapshot,pool);let visitor=decision.candidateId;
+      if(decision.status==='unmatched'){visitor='anchor-'+pool.length;pool.push({id:visitor,snapshot});}
+      replay.push({device:'host',visitor});
+    }
+    const m=labeledMetrics(replay,'visitor');m.exclusiveStableDevices=rate(0,0);result.versions[version]=m;
+  }
+  report.arrivalOrderSensitivity.push(result);
+}
 await writeFile('artifacts/intensive-v04/combined-macos.json',JSON.stringify(report,null,2));
 console.log(JSON.stringify({totalPairedObservations:rows.length,versions}));

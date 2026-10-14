@@ -34,7 +34,7 @@ The unmodified public SDK matchers replay the observations against complete reta
 | Cross-browser same-host pair continuity | 0.00% | 0.00% |
 | Cross-device uniqueness | Not measurable | Not measurable |
 
-Assignment coverage is 3,750/3,750 versus 2,500/3,750. Same-host pair continuity is 2,341,875/7,029,375 versus 1,561,250/7,029,375. There are 4,687,500 cross-browser pairs and zero successful links in either version. These pairs are dependent repeat observations of one host; no population confidence interval is inferred. The sc1 code is available on 1,250/3,750 visits (33.33%), with 100% conditional repeatability on those available values.
+Assignment coverage is 3,750/3,750 versus 2,500/3,750. Same-host pair continuity is 2,341,875/7,029,375 versus 1,561,250/7,029,375. There are 4,687,500 cross-browser pairs and zero successful links in either version. These pairs are dependent repeat observations of one host; no population confidence interval is inferred. The sc1 code is available on 1,250/3,750 visits (33.33%), with 100% conditional repeatability on those available values. Replaying all six browser-block arrival orders keeps v2 assignment coverage at 100%, but v3 varies from 33.33% to 66.67%. V3 end-to-end same-host pair continuity varies from 11.11% to 22.21%; when WebKit arrives first, its incomplete compatible anchor blocks the other two browsers. This is order sensitivity across different observations, not a tie broken by candidate-list order.
 
 **Interpretation:** stable observation hashes within a browser do not establish stable visitor assignment across browsers. The v3 coverage regression here must be considered before switching an existing workload from `mode: detailed` to the new default. The profile code must not be used as a universal hardware identifier.
 
@@ -75,6 +75,6 @@ node scripts/intensive-synthetic-check.mjs
 PYTHON=python3 node scripts/benchmark-matching.mjs
 ```
 
-For installed Chrome use `BROWSERS=chrome INTENSIVE_OUT=artifacts/intensive-chrome`. Merge completed runs from the same host with `node scripts/summarize-intensive.mjs artifacts/intensive-v04 artifacts/intensive-chrome`. Do not merge different hosts as one physical device. Raw results remain under ignored artifacts; the [Linux intensive workflow](https://github.com/ercoledevs/fingerprint-singularity/actions/runs/38530898411) publishes separate artifacts for its own host.
+For installed Chrome use `BROWSERS=chrome INTENSIVE_OUT=artifacts/intensive-chrome`. Merge completed runs from the same host with `node scripts/summarize-intensive.mjs artifacts/intensive-v04 artifacts/intensive-chrome`. Do not merge different hosts as one physical device. Raw results remain under ignored artifacts; the [Linux intensive workflow](https://github.com/ercoledevs/fingerprint-singularity/actions/runs/38532232703) publishes separate artifacts for its own host.
 
 Evidence: `sdk-provenance.json`, `browsers.json`, `observations.jsonl`, `combined-macos.json`, `synthetic.json`, and `matching-performance.json`. Public SDK source and runtime contracts were not modified for this evaluation.

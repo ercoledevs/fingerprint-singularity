@@ -31,5 +31,19 @@ text = '\n'.join(lines) + '\n'
 if os.environ.get('GITHUB_STEP_SUMMARY'):
     with Path(os.environ['GITHUB_STEP_SUMMARY']).open('a') as stream:
         stream.write(text)
+    aggregate = []
+    for browser in report['browsers']:
+        if browser['status'] != 'PASS':
+            aggregate.append(dict(browser=browser['name'], status=browser['status']))
+            continue
+        for version, data in browser['versions'].items():
+            values = data['all']; code = values['continuityCode']
+            aggregate.append(dict(browser=browser['name'], build=browser['version'], sdk=version,
+                                  digest=values['digest']['conditionalRepeatability'],
+                                  codeAvailability=code['availability'] if code else None,
+                                  codeStability=code['conditionalRepeatability'] if code else None,
+                                  collectP95Ms=values['collect']['p95Ms']))
+    print('::notice title=Intensive SDK aggregate::' + json.dumps(dict(pairedObservations=report['totalPairedObservations'],
+          physicalHosts=1, uniqueness=None, browsers=aggregate, matchReplay=report['matchReplay']), separators=(',', ':')))
 else:
     print(text)

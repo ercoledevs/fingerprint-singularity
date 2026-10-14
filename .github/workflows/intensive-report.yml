@@ -1,0 +1,33 @@
+name: public intensive report
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Completed intensive SDK evaluation run ID'
+        required: true
+        default: '38532232703'
+  workflow_run:
+    workflows: ['intensive SDK evaluation']
+    types: [completed]
+  push:
+    paths:
+      - '.github/workflows/intensive-report.yml'
+      - 'scripts/write-intensive-summary.py'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  report:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: intensive-linux-evidence
+          path: artifacts/intensive-v04
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id || inputs.run_id || '38532232703' }}
+      - run: python3 scripts/write-intensive-summary.py
